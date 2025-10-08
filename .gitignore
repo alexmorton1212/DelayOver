@@ -1,0 +1,27 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Virtual environment folder
+.venv/
+venv/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Environment variables file (secrets)
+.env
+
+# Data files (large data, outputs, parquet, csv, etc.)
+data/raw/
+data/processed/
+
+# Logs and other temporary files
+*.log
+*.tmp
+
+# VSCode settings folder
+.vscode/
+
+# macOS system files
+.DS_Store

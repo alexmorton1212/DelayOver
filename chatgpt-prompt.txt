@@ -1,0 +1,25 @@
+Hi ChatGPT, I’m working on a flight delay prediction project called DelayOver. Here’s a summary to bring you up to speed:
+Project goal: Predict flight delays (e.g., delay > 15 minutes) based on data available at booking time.
+Data sources:
+BTS On-Time Performance data downloaded monthly (rolling 3 months).
+5% Cancellations dataset (auto-downloaded, smaller and updated more frequently).
+Tech stack & workflow:
+Data ingestion script downloads latest BTS zip files, extracts, converts to Parquet.
+Data cleaning and feature engineering in Pandas, including date features, origin/destination airports, airline, holiday proximity indicators, etc.
+Model training uses a rolling 3-month dataset.
+Streamlit app for demo & user input; Docker for containerization and deployment.
+Folder structure:
+data/raw/ — raw downloaded data and extracted CSVs/parquets
+notebooks/ — exploratory Jupyter notebooks
+scripts/ — ingestion, cleaning, and other utilities
+models/ — saved models and training scripts
+app.py or similar — Streamlit deployment app
+Recent additions:
+Holiday features: numeric “days to nearest holiday” + categorical holiday type
+Handling missing or NaN columns, rolling 3-month data window
+Current issues or focus areas:
+Ensuring reliable BTS data ingestion with backfill logic
+Data cleaning pipelines for ML readiness
+Feature engineering around flight date, airports, airline, holidays
+Planning Streamlit app structure for both exploratory data querying and ML predictions
+Please pick up from here and help me with next steps, code improvements, or any new feature development.
