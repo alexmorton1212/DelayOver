@@ -13,8 +13,8 @@ import pandas as pd
 
 BASE_URL = "https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present"
 DOWNLOAD_DIR = "data/raw"
-MAX_MONTHS_LOOKBACK = 12  # Try up to 12 months back
-REQUIRED_MONTHS = 3       # Rolling 3 months data
+MAX_MONTHS_LOOKBACK = 18  # Try up to 12 months back
+REQUIRED_MONTHS = 12       # Rolling 3 months data
 
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
@@ -114,6 +114,22 @@ def main():
         check_date = current_date - relativedelta(months=i)
         year = check_date.year
         month = check_date.month
+
+        parquet_filename = f"flight_data_{year}_{month}.parquet"
+        parquet_path = os.path.join(DOWNLOAD_DIR, parquet_filename)
+
+        if os.path.exists(parquet_path):
+            print(f"📂 File already exists, skipping download: {parquet_filename}")
+            months_found += 1
+
+            # If it's the first found month and readme hasn't been saved, you might want to extract it.
+            # Since we don't have the zip file, this is skipped unless you store the original zips.
+            if months_found == 1 and not readme_saved:
+                print("ℹ️ Skipping readme.html extraction since file is already processed.")
+            
+            if months_found >= REQUIRED_MONTHS:
+                break
+            continue
 
         url = build_url(year, month)
         zip_bytes = try_download_zip(url)
