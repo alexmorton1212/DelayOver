@@ -35,6 +35,7 @@ def clean_and_filter_columns(df, columns, delay_cols):
     return df
 
 ### ---------------------------------------------------------------------------------------------------------
+### NOT USING THIS ONE ANYMORE
 ### Convert departure / arrival times from HHMM (ex. 1420 for 14:20 PM) to minutes after midnight (ex. 860)
 ### ---------------------------------------------------------------------------------------------------------
 
@@ -43,6 +44,15 @@ def extract_minutes_after_midnight(df, colname, new_colname):
     hours = df[colname] // 100
     minutes = df[colname] % 100
     df[new_colname] = hours * 60 + minutes
+    return df
+
+### ---------------------------------------------------------------------------------------------------------
+### Extract hour (0–23) directly from HHMM-formatted time (e.g., 1420 → 14)
+### ---------------------------------------------------------------------------------------------------------
+
+def extract_hour_from_hhmm(df, colname, new_colname):
+    df[colname] = pd.to_numeric(df[colname], errors='coerce')  # ensure numeric
+    df[new_colname] = (df[colname] // 100).astype('Int64')     # supports NA
     return df
 
 ### ---------------------------------------------------------------------------------------------------------
@@ -147,8 +157,10 @@ if __name__ == "__main__":
     df_clean = clean_and_filter_columns(df_raw, cols, delay_cols)
     df_filtered = filter_valid_states(df_clean, state_list)
     df_filtered = df_filtered.drop(columns=['originstate', 'deststate'])
-    df_filtered = extract_minutes_after_midnight(df_filtered, 'crsdeptime', 'deptime_mins')
-    df_filtered = extract_minutes_after_midnight(df_filtered, 'crsarrtime', 'arrtime_mins')
+    #df_filtered = extract_minutes_after_midnight(df_filtered, 'crsdeptime', 'deptime_mins')
+    #df_filtered = extract_minutes_after_midnight(df_filtered, 'crsarrtime', 'arrtime_mins')
+    df_filtered = extract_hour_from_hhmm(df_filtered, 'crsdeptime', 'dep_hour')
+    df_filtered = extract_hour_from_hhmm(df_filtered, 'crsarrtime', 'arr_hour')
     df_filtered = df_filtered.drop(columns=['crsdeptime', 'crsarrtime'])
     df_filtered = add_holiday_features(df_filtered)
     df_filtered = df_filtered.drop(columns=['year', 'flight_date', 'days_from_holiday_temp'])
@@ -156,6 +168,7 @@ if __name__ == "__main__":
     df_filtered['if_cancelled'] = np.where(df_filtered['cancelled'] == 0, '0', '1').astype(int)
     df_filtered['if_diverted'] = np.where(df_filtered['diverted'] == 0, '0', '1').astype(int)
     df_filtered = df_filtered.drop(columns=['cancelled', 'diverted'])
+    df_filtered['nonweatherdelay'] = df_filtered['arrdelayminutes'] - df_filtered['weatherdelay']
     top_airports = get_top_airports(df_filtered)
     df_final = filter_by_top_airports(df_filtered, top_airports)
     
@@ -174,9 +187,9 @@ df_summary = df_final.copy().groupby(summary_cols).agg(
     cancelled_flights = ('if_cancelled', 'sum'),
     diverted_flights = ('if_diverted', 'sum'),
     total_delay_minutes = ('arrdelayminutes', 'sum'),
-    delay_minutes_90th = ('arrdelayminutes', lambda x: int(x.quantile(0.90))),
-    delay_minutes_95th = ('arrdelayminutes', lambda x: int(x.quantile(0.95))),
-    delay_minutes_99th = ('arrdelayminutes', lambda x: int(x.quantile(0.99)))
+    #delay_minutes_90th = ('arrdelayminutes', lambda x: int(x.quantile(0.90))),
+    #delay_minutes_95th = ('arrdelayminutes', lambda x: int(x.quantile(0.95))),
+    #delay_minutes_99th = ('arrdelayminutes', lambda x: int(x.quantile(0.99)))
 ).reset_index()
 
 df_summary.to_parquet(processed_data_dir + '/summary_dataset.parquet')
@@ -187,8 +200,7 @@ print("✅ SUMMARY DATASET CREATED")
 ### MACHINE LEARNING DATASET
 #############################################################################################################
 
-ml_cols = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 
-    'deptime_mins', 'arrtime_mins', 'arrdelayminutes', 'if_near_holiday', 'days_from_holiday']
+ml_cols = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'if_near_holiday', 'days_from_holiday', 'arrdelayminutes']
 
 df_ml = df_final[ml_cols].copy()
 
