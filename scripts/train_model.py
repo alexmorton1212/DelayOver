@@ -1,294 +1,328 @@
+
 import os
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import (
-    classification_report, roc_auc_score, precision_score,
-    recall_score, f1_score, accuracy_score
-)
+import joblib
+import json
+from datetime import datetime
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import (confusion_matrix, roc_auc_score, f1_score, precision_score, recall_score)
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 
 # ---------------------------------------------
-# Load data
-# ---------------------------------------------
-script_dir = os.path.dirname(os.path.abspath(__file__))
-processed_data_dir = os.path.join(script_dir, '..', 'data', 'processed')
-
-df = pd.read_parquet(os.path.join(processed_data_dir, 'ml_dataset.parquet'))
-df_final = df.sample(frac=0.5, random_state=42)
-
-# ---------------------------------------------
-# Prepare features & target
-# ---------------------------------------------
-features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket']
-target = 'arrdelayminutes'
-
-X = df_final[features]
-y = (df_final[target] > 30).astype(int)  # Class 1 = delay over 30 mins
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, stratify=y, random_state=42
-)
-
-categorical_features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'holiday_proximity_bucket']
-numeric_features = ['dep_hour']
-
-# ---------------------------------------------
-# Preprocessing pipeline
+# Load data function
 # ---------------------------------------------
 
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features),
-        ('num', 'passthrough', numeric_features)
-    ]
-)
+def load_data(processed_data_dir, frac=0.5, random_state=42):
+    df = pd.read_parquet(os.path.join(processed_data_dir, 'ml_dataset.parquet'))
+    df_sampled = df.sample(frac=frac, random_state=random_state)
+    return df_sampled
 
 # ---------------------------------------------
-# XGBoost model with initial parameters
+# Preprocessing pipeline function
 # ---------------------------------------------
 
-xgb = XGBClassifier(
+def get_preprocessor(categorical_features, numeric_features):
+    return ColumnTransformer(
+        transformers=[
+            ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features),
+            ('num', 'passthrough', numeric_features)
+        ]
+    )
+
+# ---------------------------------------------
+# Evaluate metrics function
+# ---------------------------------------------
+
+def evaluate_metrics(y_true, y_probs, threshold):
+    y_pred = (y_probs >= threshold).astype(int)
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+
+    support_0 = tn + fp
+    support_1 = tp + fn
+
+    precision_1 = tp / (tp + fp) if (tp + fp) > 0 else 0
+    recall_1 = tp / (tp + fn) if (tp + fn) > 0 else 0
+    f1_1 = 2 * precision_1 * recall_1 / (precision_1 + recall_1) if (precision_1 + recall_1) > 0 else 0
+
+    precision_0 = tn / (tn + fn) if (tn + fn) > 0 else 0
+    recall_0 = tn / (tn + fp) if (tn + fp) > 0 else 0
+    f1_0 = 2 * precision_0 * recall_0 / (precision_0 + recall_0) if (precision_0 + recall_0) > 0 else 0
+
+    accuracy = (tp + tn) / (tp + tn + fp + fn)
+    roc_auc = roc_auc_score(y_true, y_probs)
+    fp_rate = fp / (fp + tn) if (fp + tn) > 0 else 0
+    fn_rate = fn / (fn + tp) if (fn + tp) > 0 else 0
+    percent_predicted_not_delayed = np.sum(y_pred == 0) / len(y_pred) * 100
+
+    return {
+        'accuracy': accuracy,
+        'roc_auc': roc_auc,
+        'precision_1': precision_1,
+        'recall_1': recall_1,
+        'f1_1': f1_1,
+        'support_1': support_1,
+        'precision_0': precision_0,
+        'recall_0': recall_0,
+        'f1_0': f1_0,
+        'support_0': support_0,
+        'fp_rate': fp_rate,
+        'fn_rate': fn_rate,
+        'percent_predicted_not_delayed': percent_predicted_not_delayed,
+        'true_positives': tp,
+        'false_positives': fp,
+        'true_negatives': tn,
+        'false_negatives': fn
+    }
+
+# ---------------------------------------------
+# Cross-validation and evaluation function
+# ---------------------------------------------
+
+def cross_validate_models(X, y, param_grid, thresholds, preprocessor, cv_splits=3, random_state=42):
+    cv = StratifiedKFold(n_splits=cv_splits, shuffle=True, random_state=random_state)
+    results = []
+
+    model_id = 1  # Counter to assign unique labels to parameter combinations
+
+    for max_depth in param_grid['max_depth']:
+        for lr in param_grid['learning_rate']:
+            for spw in param_grid['scale_pos_weight']:
+                for subsample in param_grid['subsample']:
+
+                    model_label = f"model_{model_id}"
+                    model_id += 1
+
+                    # Store metrics for each threshold
+                    fold_metrics_per_threshold = {thr: [] for thr in thresholds}
+
+                    for train_idx, val_idx in cv.split(X, y):
+                        X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
+                        y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
+
+                        model = XGBClassifier(
+                            objective='binary:logistic',
+                            eval_metric='logloss',
+                            use_label_encoder=False,
+                            n_estimators=200,
+                            learning_rate=lr,
+                            max_depth=max_depth,
+                            subsample=subsample,
+                            colsample_bytree=0.9,
+                            scale_pos_weight=spw,
+                            random_state=random_state,
+                            n_jobs=-1
+                        )
+
+                        pipeline = Pipeline([
+                            ('preprocessor', preprocessor),
+                            ('classifier', model)
+                        ])
+
+                        pipeline.fit(X_train, y_train)
+                        y_probs = pipeline.predict_proba(X_val)[:, 1]
+
+                        # Evaluate across all thresholds
+                        for thr in thresholds:
+                            metrics = evaluate_metrics(y_val, y_probs, thr)
+                            fold_metrics_per_threshold[thr].append(metrics)
+
+                    # Average metrics across folds per threshold
+                    for thr in thresholds:
+                        avg_metrics = pd.DataFrame(fold_metrics_per_threshold[thr]).mean().to_dict()
+                        results.append({
+                            'model_label': model_label,
+                            'threshold': thr,
+                            'max_depth': max_depth,
+                            'learning_rate': lr,
+                            'scale_pos_weight': spw,
+                            'subsample': subsample,
+                            **avg_metrics
+                        })
+
+    return results
+
+
+# ---------------------------------------------
+# Main execution block
+# ---------------------------------------------
+
+if __name__ == '__main__':
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    processed_data_dir = os.path.join(script_dir, '..', 'data', 'processed')
+
+    df = load_data(processed_data_dir)
+
+    features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket']
+    target = 'arrdelayminutes'
+
+    X = df[features]
+    y = (df[target] > 30).astype(int)
+
+    categorical_features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'holiday_proximity_bucket']
+    numeric_features = ['dep_hour']
+
+    preprocessor = get_preprocessor(categorical_features, numeric_features)
+
+    param_grid = {
+        'max_depth': [4, 6],
+        'learning_rate': [0.05, 0.1],
+        'scale_pos_weight': [3, 5],
+        'subsample': [0.8, 1.0]
+    }
+
+    thresholds = [0.15, 0.2, 0.25, 0.3, 0.35]
+
+    results = cross_validate_models(X, y, param_grid, thresholds, preprocessor)
+
+    results_df = pd.DataFrame(results)
+
+    output_path = os.path.join(processed_data_dir, 'xgb_model_cv_eval_results_with_thresholds.csv')
+    results_df.to_csv(output_path, index=False)
+
+    print(f"\n✅ Cross-validated results with multiple thresholds saved to:\n{output_path}")
+
+
+# ---------------------------------------------
+# Identify and retrain the best model
+# ---------------------------------------------
+
+# Custom scoring: update this line as needed
+results_df['custom_score'] = (0.55 * results_df['recall_1']) + (0.05 * results_df['precision_0']) + (0.35 * results_df['recall_0']) + (0.05 * results_df['roc_auc'])
+
+# Select best model row
+best_row = results_df.loc[results_df['custom_score'].idxmax()]
+best_params = {
+    'max_depth': int(best_row['max_depth']),
+    'learning_rate': float(best_row['learning_rate']),
+    'scale_pos_weight': float(best_row['scale_pos_weight']),
+    'subsample': float(best_row['subsample']),
+}
+best_threshold = float(best_row['threshold'])
+best_model_label = best_row['model_label']
+
+print(f"\n🏆 Best Model: {best_model_label} @ threshold {best_threshold} with custom score = {best_row['custom_score']:.4f}")
+
+# Retrain best model on full data
+final_model = XGBClassifier(
     objective='binary:logistic',
     eval_metric='logloss',
     use_label_encoder=False,
     n_estimators=200,
-    learning_rate=0.1,
-    max_depth=4,
-    subsample=0.9,
+    learning_rate=best_params['learning_rate'],
+    max_depth=best_params['max_depth'],
+    subsample=best_params['subsample'],
     colsample_bytree=0.9,
-    scale_pos_weight=10,  # class imbalance
+    scale_pos_weight=best_params['scale_pos_weight'],
     random_state=42,
     n_jobs=-1
 )
 
-# Full pipeline
-pipeline = Pipeline(steps=[
+pipeline = Pipeline([
     ('preprocessor', preprocessor),
-    ('classifier', xgb)
+    ('classifier', final_model)
 ])
 
-# model = pipeline
-# model.fit(X_train, y_train)
+pipeline.fit(X, y)
 
 # ---------------------------------------------
-# Light hyperparameter tuning
+# Threshold Evaluation: 0.05 to 1.0
 # ---------------------------------------------
+thresholds_to_test = np.arange(0.05, 1.01, 0.05)
+y_probs = pipeline.predict_proba(X)[:, 1]
 
-param_grid = {
-    'classifier__max_depth': [4, 5, 6],
-    'classifier__learning_rate': [0.05, 0.1, 0.2],
-    'classifier__n_estimators': [100],
-    'classifier__scale_pos_weight': [2, 3]
+threshold_metrics = []
+
+for thr in thresholds_to_test:
+    y_pred = (y_probs >= thr).astype(int)
+    tn, fp, fn, tp = confusion_matrix(y, y_pred).ravel()
+
+    precision_1 = precision_score(y, y_pred, zero_division=0)
+    recall_1 = recall_score(y, y_pred, zero_division=0)
+    f1_1 = f1_score(y, y_pred, zero_division=0)
+
+    precision_0 = tn / (tn + fn) if (tn + fn) > 0 else 0
+    recall_0 = tn / (tn + fp) if (tn + fp) > 0 else 0
+    f1_0 = 2 * precision_0 * recall_0 / (precision_0 + recall_0) if (precision_0 + recall_0) > 0 else 0
+
+    roc_auc = roc_auc_score(y, y_probs)
+    fp_rate = fp / (fp + tn) if (fp + tn) else 0
+    fn_rate = fn / (fn + tp) if (fn + tp) else 0
+    percent_predicted_not_delayed = np.sum(y_pred == 0) / len(y_pred) * 100
+
+    threshold_metrics.append({
+        "threshold": round(thr, 2),
+        "precision_1": precision_1,
+        "recall_1": recall_1,
+        "f1_1": f1_1,
+        "precision_0": precision_0,
+        "recall_0": recall_0,
+        "f1_0": f1_0,
+        "fp_rate": fp_rate,
+        "fn_rate": fn_rate,
+        "percent_predicted_not_delayed": percent_predicted_not_delayed,
+        "roc_auc": roc_auc,
+        "accuracy": (tp + tn) / (tp + tn + fp + fn)
+    })
+
+threshold_df = pd.DataFrame(threshold_metrics)
+
+output_path = os.path.join(processed_data_dir, 'best_model_thresholds.csv')
+threshold_df.to_csv(output_path, index=False)
+
+# ---------------------------------------------
+# Save model & metadata
+# ---------------------------------------------
+models_dir = os.path.join(script_dir, '..', 'models')
+os.makedirs(models_dir, exist_ok=True)
+
+model_path = os.path.join(models_dir, 'final_model.pkl')
+metadata_path = os.path.join(models_dir, 'model_metadata.json')
+log_path = os.path.join(models_dir, 'model_training_log.csv')
+
+# Save model
+joblib.dump(pipeline, model_path)
+
+# Save metadata
+metadata = {
+    "model_label": best_model_label,
+    "selected_threshold": best_threshold,
+    "parameters": best_params,
+    "custom_score": best_row['custom_score'],
+    "thresholds": {
+        "unlikely": 0.0,
+        "somewhat_likely": 0.3,
+        "very_likely": 0.6
+    },
+    "generated_at": datetime.utcnow().isoformat()
 }
 
-grid_search = GridSearchCV(
-    estimator=pipeline,
-    param_grid=param_grid,
-    cv=3,
-    scoring='recall',  # focuses on capturing class 1
-    verbose=1,
-    n_jobs=-1
-)
-
-grid_search.fit(X_train, y_train)
-
-# Use best model from tuning
-model = grid_search.best_estimator_
+with open(metadata_path, 'w') as f:
+    json.dump(metadata, f, indent=4)
 
 # ---------------------------------------------
-# Predict and apply threshold
+# Log model selection for audit/history
 # ---------------------------------------------
+log_entry = {
+    "timestamp": datetime.utcnow().isoformat(),
+    "model_label": best_model_label,
+    "threshold": best_threshold,
+    **best_params,
+    "custom_score": best_row['custom_score']
+}
 
-threshold = 0.25  # adjust for desired false positive / false negative trade-off
-y_probs = model.predict_proba(X_test)[:, 1]
-y_pred = (y_probs >= threshold).astype(int)
+# Append or create log file
+log_df = pd.DataFrame([log_entry])
 
-# ---------------------------------------------
-# Evaluation
-# ---------------------------------------------
-print(f"\nClassification Report (threshold = {threshold:.2f}):")
-print(classification_report(y_test, y_pred))
+if os.path.exists(log_path):
+    existing_log = pd.read_csv(log_path)
+    log_df = pd.concat([existing_log, log_df], ignore_index=True)
 
-accuracy = accuracy_score(y_test, y_pred)
-precision = precision_score(y_test, y_pred)
-recall = recall_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred)
-roc_auc = roc_auc_score(y_test, y_probs)
-fn_rate = 1 - recall
+log_df.to_csv(log_path, index=False)
 
-print(f"Accuracy:  {accuracy:.4f}")
-print(f"Precision: {precision:.4f}")
-print(f"Recall:    {recall:.4f}")
-print(f"FN Rate:   {fn_rate:.4f}")
-print(f"F1 Score:  {f1:.4f}")
-print(f"ROC AUC:   {roc_auc:.4f}")
-
-# ---------------------------------------------
-# How many were predicted as NOT delayed
-# ---------------------------------------------
-n_total = len(y_pred)
-n_predicted_not_delayed = np.sum(y_pred == 0)
-percent_not_delayed = n_predicted_not_delayed / n_total * 100
-
-print(f"\nFlights predicted as NOT DELAYED: {n_predicted_not_delayed} ({percent_not_delayed:.2f}%)")
-
-
-# import os
-# import pandas as pd
-# from sklearn.model_selection import train_test_split
-# from sklearn.metrics import classification_report, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
-# from sklearn.preprocessing import OneHotEncoder
-# from sklearn.compose import ColumnTransformer
-# from sklearn.pipeline import Pipeline
-# import xgboost as xgb
-
-# # Paths (adjust as needed)
-# script_dir = os.path.dirname(os.path.abspath(__file__))
-# processed_data_dir = os.path.join(script_dir, '..', 'data', 'processed')
-
-# # Load data
-# df = pd.read_parquet(processed_data_dir + '/ml_dataset.parquet')
-
-# # Use 10% sample
-# df_final = df.sample(frac=0.2, random_state=42)
-
-# # Features and target
-# features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket']
-# target = 'arrdelayminutes'
-
-# X = df_final[features]
-# y = (df_final[target] > 30).astype(int)  # Binary target: delay > 30 mins
-
-# # Train-test split with stratify to preserve imbalance ratio
-# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
-# # Define categorical and numeric features
-# categorical_features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'holiday_proximity_bucket']
-# numeric_features = ['dep_hour']
-
-# # Preprocessing pipeline
-# preprocessor = ColumnTransformer(
-#     transformers=[
-#         ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features),
-#         ('num', 'passthrough', numeric_features)
-#     ])
-
-# # Calculate imbalance ratio for scale_pos_weight
-# scale_pos_weight = (y_train == 0).sum() / (y_train == 1).sum()
-
-# # Initialize XGBoost classifier with imbalance handling
-# xgb_clf = xgb.XGBClassifier(
-#     objective='binary:logistic',
-#     eval_metric='logloss',
-#     use_label_encoder=False,
-#     n_jobs=-1,
-#     random_state=42,
-#     scale_pos_weight=scale_pos_weight,
-#     verbosity=1
-# )
-
-# # Create pipeline
-# model_pipeline = Pipeline(steps=[
-#     ('preprocessor', preprocessor),
-#     ('classifier', xgb_clf)
-# ])
-
-# # Train the model
-# model_pipeline.fit(X_train, y_train)
-
-# # Predict probabilities on test set
-# y_probs = model_pipeline.predict_proba(X_test)[:, 1]
-
-# # Apply adjusted threshold (e.g., 0.2) to increase recall
-# threshold = 0.35
-# y_pred_adj = (y_probs >= threshold).astype(int)
-
-# # Evaluate
-# print("Classification Report (threshold = {:.2f}):\n".format(threshold), classification_report(y_test, y_pred_adj))
-
-# accuracy = accuracy_score(y_test, y_pred_adj)
-# precision = precision_score(y_test, y_pred_adj)
-# recall = recall_score(y_test, y_pred_adj)
-# f1 = f1_score(y_test, y_pred_adj)
-# roc_auc = roc_auc_score(y_test, y_probs)
-
-# print(f"Accuracy:  {accuracy:.4f}")
-# print(f"Precision: {precision:.4f}")
-# print(f"Recall:    {recall:.4f}")
-# print(f"FN Rate:   {1-recall:.4f}")
-# print(f"F1 Score:  {f1:.4f}")
-# print(f"ROC AUC:   {roc_auc:.4f}")
-
-
-# import os
-# import pandas as pd
-# from sklearn.model_selection import train_test_split
-# from sklearn.ensemble import RandomForestClassifier
-# from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, classification_report
-# from sklearn.preprocessing import OneHotEncoder
-# from sklearn.compose import ColumnTransformer
-# from sklearn.pipeline import Pipeline
-
-
-# script_dir = os.path.dirname(os.path.abspath(__file__))
-# processed_data_dir = os.path.join(script_dir, '..', 'data', 'processed')
-
-# df = pd.read_parquet(processed_data_dir + '/ml_dataset.parquet')
-# df_final = df.sample(frac=0.1, random_state=42)
-
-
-# # Assuming df_final is your DataFrame and already cleaned/filtered
-# # Features and target
-# features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket']
-# target = 'arrdelayminutes'
-
-# X = df_final[features]
-
-# # Create binary target: 1 if delay > 30 mins else 0
-# y = (df_final[target] > 30).astype(int)
-
-# # Train-test split
-# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
-# # Define categorical and numeric features
-# categorical_features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'holiday_proximity_bucket']
-# numeric_features = ['dep_hour']
-
-# # Preprocessing pipeline
-# preprocessor = ColumnTransformer(
-#     transformers=[
-#         ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features),
-#         ('num', 'passthrough', numeric_features)
-#     ])
-
-# # Model pipeline
-# model_pipeline = Pipeline(steps=[
-#     ('preprocessor', preprocessor),
-#     ('classifier', RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1))
-# ])
-
-# # Train the classifier
-# model_pipeline.fit(X_train, y_train)
-
-# # Predict on test set
-# y_pred = model_pipeline.predict(X_test)
-# y_pred_proba = model_pipeline.predict_proba(X_test)[:, 1]
-
-# # Evaluate
-# print("Classification Report:\n", classification_report(y_test, y_pred))
-
-# accuracy = accuracy_score(y_test, y_pred)
-# precision = precision_score(y_test, y_pred)
-# recall = recall_score(y_test, y_pred)
-# f1 = f1_score(y_test, y_pred)
-# roc_auc = roc_auc_score(y_test, y_pred_proba)
-
-# print(f"Accuracy:  {accuracy:.4f}")
-# print(f"Precision: {precision:.4f}")
-# print(f"Recall:    {recall:.4f}")
-# print(f"F1 Score:  {f1:.4f}")
-# print(f"ROC AUC:   {roc_auc:.4f}")
+print(f"\n✅ Final model saved to: {model_path}")
+print(f"📋 Metadata saved to: {metadata_path}")
+print(f"🗒️ Log updated at: {log_path}")
