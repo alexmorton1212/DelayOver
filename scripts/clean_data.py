@@ -35,18 +35,6 @@ def clean_and_filter_columns(df, columns, delay_cols):
     return df
 
 ### ---------------------------------------------------------------------------------------------------------
-### NOT USING THIS ONE ANYMORE
-### Convert departure / arrival times from HHMM (ex. 1420 for 14:20 PM) to minutes after midnight (ex. 860)
-### ---------------------------------------------------------------------------------------------------------
-
-def extract_minutes_after_midnight(df, colname, new_colname):
-    df[colname] = pd.to_numeric(df[colname], errors='coerce')  # convert to numeric, NaNs if invalid
-    hours = df[colname] // 100
-    minutes = df[colname] % 100
-    df[new_colname] = hours * 60 + minutes
-    return df
-
-### ---------------------------------------------------------------------------------------------------------
 ### Extract hour (0–23) directly from HHMM-formatted time (e.g., 1420 → 14)
 ### ---------------------------------------------------------------------------------------------------------
 
@@ -157,8 +145,6 @@ if __name__ == "__main__":
     df_clean = clean_and_filter_columns(df_raw, cols, delay_cols)
     df_filtered = filter_valid_states(df_clean, state_list)
     df_filtered = df_filtered.drop(columns=['originstate', 'deststate'])
-    #df_filtered = extract_minutes_after_midnight(df_filtered, 'crsdeptime', 'deptime_mins')
-    #df_filtered = extract_minutes_after_midnight(df_filtered, 'crsarrtime', 'arrtime_mins')
     df_filtered = extract_hour_from_hhmm(df_filtered, 'crsdeptime', 'dep_hour')
     df_filtered = extract_hour_from_hhmm(df_filtered, 'crsarrtime', 'arr_hour')
     df_filtered = df_filtered.drop(columns=['crsdeptime', 'crsarrtime'])

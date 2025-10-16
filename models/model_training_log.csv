@@ -1,4 +1,0 @@
-timestamp,model_label,threshold,max_depth,learning_rate,scale_pos_weight,subsample,custom_score
-2025-10-14T21:52:37.126018,model_15,0.3,6,0.1,5.0,0.8,2.107996226849591
-2025-10-14T23:03:55.413319,model_15,0.35,6,0.1,5.0,0.8,0.6906180972590134
-2025-10-14T23:41:56.882244,model_15,0.35,6,0.1,5.0,0.8,0.6906180972590134
