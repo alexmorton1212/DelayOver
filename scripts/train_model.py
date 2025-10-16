@@ -14,41 +14,60 @@ from xgboost import XGBClassifier
 
 
 #############################################################################################################
-### DIRECTORIES
+### DIRECTORIES & GLOBAL VARIABLES
 #############################################################################################################
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-processed_data_dir = os.path.join(script_dir, '..', 'data', 'processed')
-models_dir = os.path.join(script_dir, '..', 'models')
+# Random State for Replication
 
+SEED = 42
+
+### Directories
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
+MODELS_DIR = os.path.join(SCRIPT_DIR, '..', 'models')
+
+# Flight Delay Features
+
+CATEGORICAL_FEATURES = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'holiday_proximity_bucket']
+NUMERIC_FEATURES = ['dep_hour']
+
+# Preprocessor (Transformations for XGBoost)
+
+PREPROCESSOR = ColumnTransformer(
+    transformers=[
+        ('cat', OneHotEncoder(handle_unknown='ignore'), CATEGORICAL_FEATURES),
+        ('num', 'passthrough', NUMERIC_FEATURES)
+    ]
+)
 
 #############################################################################################################
 ### FUNCTIONS
 #############################################################################################################
 
 ### -------------------------------------------------------------------------------------------------
-### Load data function
-### -------------------------------------------------------------------------------------------------
 
-def load_data(processed_data_dir, frac=0.5, random_state=42):
-    df = pd.read_parquet(os.path.join(processed_data_dir, 'ml_dataset.parquet'))
-    df_sampled = df.sample(frac=frac, random_state=random_state)
+def load_data():
+    df = pd.read_parquet(os.path.join(PROCESSED_DATA_DIR, 'ml_dataset.parquet'))
+    df_sampled = df.sample(frac=0.5, random_state=SEED)
     return df_sampled
 
 ### -------------------------------------------------------------------------------------------------
-### Preprocessing pipeline function
-### -------------------------------------------------------------------------------------------------
 
-def get_preprocessor(categorical_features, numeric_features):
-    return ColumnTransformer(
-        transformers=[
-            ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features),
-            ('num', 'passthrough', numeric_features)
-        ]
-    )
+### NEED TO FIX THIS, "DEP_HOUR" SHOULD BE CATEGORICAL
 
-### -------------------------------------------------------------------------------------------------
-### Evaluate metrics function
+def prepare_data():
+
+    df = load_data()
+
+    features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket']
+    target = 'arrdelayminutes'
+
+    X = df[features]
+    y = (df[target] > 30).astype(int)
+
+    return X, y
+
 ### -------------------------------------------------------------------------------------------------
 
 def evaluate_metrics(y_true, y_probs, threshold):
@@ -93,14 +112,13 @@ def evaluate_metrics(y_true, y_probs, threshold):
     }
 
 ### -------------------------------------------------------------------------------------------------
-### Cross-validation and evaluation function
-### -------------------------------------------------------------------------------------------------
 
-def cross_validate_models(X, y, param_grid, thresholds, preprocessor, cv_splits=3, random_state=42):
-    cv = StratifiedKFold(n_splits=cv_splits, shuffle=True, random_state=random_state)
+def cross_validate_models(X, y, param_grid, thresholds):
+
+    cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=SEED)
+
     results = []
-
-    model_id = 1  # Counter to assign unique labels to parameter combinations
+    model_id = 1 
 
     for max_depth in param_grid['max_depth']:
         for lr in param_grid['learning_rate']:
@@ -126,12 +144,12 @@ def cross_validate_models(X, y, param_grid, thresholds, preprocessor, cv_splits=
                             subsample=subsample,
                             colsample_bytree=0.9,
                             scale_pos_weight=spw,
-                            random_state=random_state,
+                            random_state=SEED,
                             n_jobs=-1
                         )
 
                         pipeline = Pipeline([
-                            ('preprocessor', preprocessor),
+                            ('preprocessor', PREPROCESSOR),
                             ('classifier', model)
                         ])
 
@@ -158,27 +176,9 @@ def cross_validate_models(X, y, param_grid, thresholds, preprocessor, cv_splits=
 
     return results
 
-def prepare_data(script_dir):
-    processed_data_dir = os.path.join(script_dir, '..', 'data', 'processed')
-    df = load_data(processed_data_dir)
+### -------------------------------------------------------------------------------------------------
 
-    features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket']
-    target = 'arrdelayminutes'
-
-    X = df[features]
-    y = (df[target] > 30).astype(int)
-
-    categorical_features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'holiday_proximity_bucket']
-    numeric_features = ['dep_hour']
-
-    preprocessor = get_preprocessor(categorical_features, numeric_features)
-
-    return X, y, preprocessor, processed_data_dir
-
-
-def tune_and_evaluate_models(X, y, preprocessor, processed_data_dir):
-
-    models_dir = os.path.join(script_dir, '..', 'models')
+def tune_and_evaluate_models(X, y):
 
     param_grid = {
         'max_depth': [4, 6],
@@ -187,18 +187,20 @@ def tune_and_evaluate_models(X, y, preprocessor, processed_data_dir):
         'subsample': [0.8, 1.0]
     }
 
-    thresholds = [0.15, 0.2, 0.25, 0.3, 0.35]
-    results = cross_validate_models(X, y, param_grid, thresholds, preprocessor)
+    thresholds = [0.15, 0.2, 0.25, 0.3, 0.35] # thresholds near proposed boundary
+    results = cross_validate_models(X, y, param_grid, thresholds)
 
     results_df = pd.DataFrame(results)
-    output_path = os.path.join(models_dir, 'model_xgb_results.csv')
+    output_path = os.path.join(MODELS_DIR, 'model_xgb_results.csv')
     results_df.to_csv(output_path, index=False)
     print(f"\n✅ Cross-validated results with multiple thresholds saved to:\n{output_path}")
 
     return results_df
 
+### -------------------------------------------------------------------------------------------------
 
-def select_and_train_best_model(X, y, results_df, preprocessor):
+def select_and_train_best_model(X, y, results_df):
+
     results_df['custom_score'] = (
         0.55 * results_df['recall_1'] +
         0.35 * results_df['recall_0'] +
@@ -227,12 +229,12 @@ def select_and_train_best_model(X, y, results_df, preprocessor):
         subsample=best_params['subsample'],
         colsample_bytree=0.9,
         scale_pos_weight=best_params['scale_pos_weight'],
-        random_state=42,
+        random_state=SEED,
         n_jobs=-1
     )
 
     pipeline = Pipeline([
-        ('preprocessor', preprocessor),
+        ('preprocessor', PREPROCESSOR),
         ('classifier', final_model)
     ])
 
@@ -240,10 +242,9 @@ def select_and_train_best_model(X, y, results_df, preprocessor):
 
     return pipeline, best_model_label, best_threshold, best_params, best_row
 
+### -------------------------------------------------------------------------------------------------
 
-def evaluate_thresholds_on_full_data(pipeline, X, y, processed_data_dir):
-
-    models_dir = os.path.join(script_dir, '..', 'models')
+def evaluate_thresholds_on_full_data(pipeline, X, y):
 
     thresholds_to_test = np.arange(0.05, 1.01, 0.05)
     y_probs = pipeline.predict_proba(X)[:, 1]
@@ -256,17 +257,18 @@ def evaluate_thresholds_on_full_data(pipeline, X, y, processed_data_dir):
         threshold_metrics.append(metrics)
 
     threshold_df = pd.DataFrame(threshold_metrics)
-    output_path = os.path.join(models_dir, 'model_thresholds.csv')
+    output_path = os.path.join(MODELS_DIR, 'model_thresholds.csv')
     threshold_df.to_csv(output_path, index=False)
     print(f"\n📊 Threshold evaluations saved to:\n{output_path}")
 
+### -------------------------------------------------------------------------------------------------
 
-def save_model_and_metadata(pipeline, script_dir, best_model_label, best_threshold, best_params, best_row):
-    models_dir = os.path.join(script_dir, '..', 'models')
-    os.makedirs(models_dir, exist_ok=True)
+def save_model_and_metadata(pipeline, best_model_label, best_threshold, best_params, best_row):
 
-    model_path = os.path.join(models_dir, 'final_model.pkl')
-    metadata_path = os.path.join(models_dir, 'model_metadata.json')
+    os.makedirs(MODELS_DIR, exist_ok=True)
+
+    model_path = os.path.join(MODELS_DIR, 'final_model.pkl')
+    metadata_path = os.path.join(MODELS_DIR, 'model_metadata.json')
 
     # Save model
     joblib.dump(pipeline, model_path)
@@ -293,10 +295,11 @@ def save_model_and_metadata(pipeline, script_dir, best_model_label, best_thresho
     print(f"\n✅ Final model saved to: {model_path}")
     print(f"📋 Metadata saved to: {metadata_path}")
 
+### -------------------------------------------------------------------------------------------------
 
-def log_model_training(script_dir, best_model_label, best_threshold, best_params, best_row):
-    models_dir = os.path.join(script_dir, '..', 'models')
-    log_path = os.path.join(models_dir, 'model_training_log.csv')
+def log_model_training(best_model_label, best_threshold, best_params, best_row):
+
+    log_path = os.path.join(MODELS_DIR, 'model_training_log.csv')
 
     log_entry = {
         "timestamp": datetime.now(UTC).isoformat(),
@@ -321,11 +324,10 @@ def log_model_training(script_dir, best_model_label, best_threshold, best_params
 #############################################################################################################
 
 if __name__ == '__main__':
-    script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    X, y, preprocessor, processed_data_dir = prepare_data(script_dir)
-    results_df = tune_and_evaluate_models(X, y, preprocessor, processed_data_dir)
-    pipeline, best_model_label, best_threshold, best_params, best_row = select_and_train_best_model(X, y, results_df, preprocessor)
-    evaluate_thresholds_on_full_data(pipeline, X, y, processed_data_dir)
-    save_model_and_metadata(pipeline, script_dir, best_model_label, best_threshold, best_params, best_row)
-    log_model_training(script_dir, best_model_label, best_threshold, best_params, best_row)
+    X, y = prepare_data()
+    results_df = tune_and_evaluate_models(X, y)
+    pipeline, best_model_label, best_threshold, best_params, best_row = select_and_train_best_model(X, y, results_df)
+    evaluate_thresholds_on_full_data(pipeline, X, y)
+    save_model_and_metadata(pipeline, best_model_label, best_threshold, best_params, best_row)
+    log_model_training(best_model_label, best_threshold, best_params, best_row)
