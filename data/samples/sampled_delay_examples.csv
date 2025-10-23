@@ -1,0 +1,31 @@
+month,dayofweek,origin,dest,reporting_airline,dep_hour,holiday_proximity_bucket,delay_prob,delay_category
+5,1,ATL,MIA,F9,19,5,0.77232385,Delay Almost Certain (Yikes)
+8,5,ORD,CLT,AA,18,5,0.750162,Delay Almost Certain (Yikes)
+7,5,IAH,ONT,UA,20,5,0.79541814,Delay Almost Certain (Yikes)
+7,5,ATL,MIA,F9,22,5,0.78962326,Delay Almost Certain (Yikes)
+6,2,ICT,DEN,WN,16,5,0.7566489,Delay Almost Certain (Yikes)
+3,4,DTW,DEN,WN,15,5,0.48758182,Delay Likely
+4,6,DEN,AUS,WN,15,5,0.4647865,Delay Likely
+7,5,BWI,DEN,WN,17,2,0.58189815,Delay Likely
+7,6,PDX,SNA,AS,17,5,0.4706702,Delay Likely
+7,4,PVU,AUS,G4,15,4,0.55659556,Delay Likely
+5,1,CLT,SGF,OH,9,5,0.40530416,Delay Somewhat Likely
+5,3,SEA,SAT,AS,23,3,0.37103885,Delay Somewhat Likely
+11,5,ORD,TYS,UA,19,5,0.41159227,Delay Somewhat Likely
+1,7,IAH,LAX,UA,12,4,0.4003469,Delay Somewhat Likely
+4,4,DEN,MIA,UA,10,5,0.38126156,Delay Somewhat Likely
+9,3,PHL,DEN,AA,11,5,0.323276,Delay Unlikely
+7,6,DFW,AUS,OO,7,5,0.34440115,Delay Unlikely
+7,4,ICT,DFW,MQ,5,5,0.3456657,Delay Unlikely
+5,4,STL,DCA,WN,8,4,0.25336847,Delay Unlikely
+2,6,OKC,MSP,OO,7,5,0.33295348,Delay Unlikely
+7,2,DFW,PHL,AA,17,3,0.66974324,Delay Very Likely
+6,5,ATL,JAX,DL,22,5,0.6116771,Delay Very Likely
+3,7,GSO,CLT,OH,20,5,0.6300983,Delay Very Likely
+8,5,BOS,DEN,WN,18,5,0.60859346,Delay Very Likely
+6,5,MCO,DAL,WN,19,4,0.70594114,Delay Very Likely
+10,6,ATL,JAN,WN,13,5,0.24486212,Delay Very Unlikely
+5,5,HNL,ITO,HA,7,4,0.14947443,Delay Very Unlikely
+12,2,JFK,PWM,YX,12,5,0.23740081,Delay Very Unlikely
+10,7,PIT,LGA,YX,13,5,0.2481863,Delay Very Unlikely
+10,2,BHM,LGA,9E,6,5,0.11453528,Delay Very Unlikely
