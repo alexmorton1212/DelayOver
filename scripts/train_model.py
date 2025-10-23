@@ -29,8 +29,8 @@ MODELS_DIR = os.path.join(SCRIPT_DIR, '..', 'models')
 
 # Flight Delay Features
 
-CATEGORICAL_FEATURES = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'holiday_proximity_bucket']
-NUMERIC_FEATURES = ['dep_hour']
+CATEGORICAL_FEATURES = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket']
+NUMERIC_FEATURES = []
 
 # Preprocessor (Transformations for XGBoost)
 
@@ -71,6 +71,7 @@ def prepare_data():
 ### -------------------------------------------------------------------------------------------------
 
 def evaluate_metrics(y_true, y_probs, threshold):
+
     y_pred = (y_probs >= threshold).astype(int)
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
 

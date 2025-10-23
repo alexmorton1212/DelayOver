@@ -1,0 +1,19 @@
+{
+    "model_label": "model_15",
+    "selected_threshold": 0.35,
+    "parameters": {
+        "max_depth": 6,
+        "learning_rate": 0.1,
+        "scale_pos_weight": 5.0,
+        "subsample": 0.8
+    },
+    "custom_score": 0.6900235498289076,
+    "thresholds": {
+        "Delay Very Unlikely": 0.25,
+        "Delay Unlikely": 0.35,
+        "Delay Somewhat Likely": 0.45,
+        "Delay Likely": 0.6,
+        "Delay Very Likely": 0.75
+    },
+    "generated_at": "2025-10-22T19:34:32.727799+00:00"
+}

@@ -4,9 +4,15 @@ import numpy as np
 import holidays
 import os
 
+
+#############################################################################################################
+### DIRECTORIES
+#############################################################################################################
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 raw_data_dir = os.path.join(script_dir, '..', 'data', 'raw')
 processed_data_dir = os.path.join(script_dir, '..', 'data', 'processed')
+
 
 #############################################################################################################
 ### FUNCTIONS
@@ -70,12 +76,11 @@ def filter_by_top_airports(df, top_airports):
 ### ---------------------------------------------------------------------------------------------------------
 
 def add_holiday_features(df, max_window=14, sentinel=99):
-    # Step 1: Add a datetime column
+
     date_cols = df[['year', 'month', 'dayofmonth']].copy()
     date_cols.rename(columns={'dayofmonth': 'day'}, inplace=True)
     df['flight_date'] = pd.to_datetime(date_cols)
 
-    # Step 2: Define relevant US holidays
     years = df['year'].unique()
     us_holidays = holidays.US(years=years)
 
@@ -91,7 +96,6 @@ def add_holiday_features(df, max_window=14, sentinel=99):
     filtered_holidays = {date: name for date, name in us_holidays.items() if name in major_holidays}
     holiday_dates = sorted(filtered_holidays.keys())
 
-    # Step 3: Calculate proximity to nearest holiday
     def get_days_from_nearest_holiday(date):
         closest_delta = None
         for holiday in holiday_dates:
@@ -102,7 +106,6 @@ def add_holiday_features(df, max_window=14, sentinel=99):
                     closest_holiday = holiday
         return closest_delta
 
-    # Step 3: Calculate proximity to nearest holiday
     def get_nearest_holiday(date):
         closest_delta = None
         closest_holiday = None
@@ -132,11 +135,14 @@ def add_holiday_features(df, max_window=14, sentinel=99):
 # delays defined as more than 15 minutes
 
 if __name__ == "__main__":
+
     cols = ['year', 'month', 'dayofmonth', 'dayofweek', 'origin', 'dest', 'reporting_airline', 
         'originstate', 'deststate', 'crsdeptime', 'crsarrtime','carrierdelay', 'weatherdelay', 
         'nasdelay', 'securitydelay', 'lateaircraftdelay', 'arrdelayminutes', 'cancelled', 'diverted']
+
     delay_cols = ['carrierdelay', 'weatherdelay', 'nasdelay', 'securitydelay', 
         'lateaircraftdelay', 'arrdelayminutes']
+
     state_list = ['AK','AL','AR','AZ','CA','CO','CT','DC','DE','FL','GA','HI','IA','ID','IL','IN',
         'KS','KY','LA','MA','MD','ME','MI','MN','MO','MS','MT','NC','ND','NE','NH','NJ','NM','NV',
         'NY','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VA','VT','WA','WI','WV','WY']
