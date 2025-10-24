@@ -129,6 +129,62 @@ def add_holiday_features(df, max_window=14, sentinel=99):
 
     return df
 
+def add_holiday_metrics(df):
+
+    # Step 1: Convert to datetime
+    df['flight_date'] = pd.to_datetime(df[['year', 'month', 'dayofmonth']].rename(columns={'dayofmonth': 'day'}))
+
+    # Step 2: Major holidays and codes
+    us_holidays = holidays.US(years=df['year'].unique())
+
+    major_holidays = {"New Year's Day": "A", "Memorial Day": "B", "Independence Day": "C",
+        "Labor Day": "D", "Thanksgiving Day": "E", "Christmas Day": "F"
+    }
+
+    # Filter to relevant holiday dates and codes
+    holiday_info = [
+        (pd.Timestamp(date), code)
+        for date, name in us_holidays.items()
+        if name in major_holidays
+        for code in [major_holidays[name]]
+    ]
+
+    if not holiday_info:
+        df['holiday_proximity_bucket'] = 5
+        df['holiday_code'] = 'NA'
+        return df
+
+    # Step 3: Build holiday date array
+    holiday_dates = np.array([d[0] for d in holiday_info], dtype='datetime64[D]')
+    holiday_codes = np.array([d[1] for d in holiday_info])
+
+    # Step 4: Calculate days difference (vectorized)
+    flight_dates = df['flight_date'].values.astype('datetime64[D]')
+    date_diffs = flight_dates[:, None] - holiday_dates[None, :]  # shape (N_flights, N_holidays)
+    delta_days = np.abs(date_diffs.astype('timedelta64[D]').astype(int))  # in days
+
+    # Step 5: Find nearest holiday within 7 days
+    min_diff = np.min(delta_days, axis=1)
+    min_idx = np.argmin(delta_days, axis=1)
+
+    # Step 6: Assign bucket based on delta
+    bucket = np.full(len(df), 5)  # Default: 5 = not near holiday
+    bucket[min_diff == 0] = 1
+    bucket[(min_diff == 1)] = 2
+    bucket[(min_diff >= 2) & (min_diff <= 3)] = 3
+    bucket[(min_diff >= 4) & (min_diff <= 7)] = 4
+
+    # Step 7: Assign holiday code (or NA if not within range)
+    code = np.array(['NA'] * len(df), dtype=object)
+    within_range = min_diff <= 7
+    code[within_range] = holiday_codes[min_idx[within_range]]
+
+    # Step 8: Assign to dataframe
+    df['holiday_proximity_bucket'] = bucket
+    df['holiday_code'] = code
+
+    return df
+
 
 # --------------------------------------------------------------------------------------------------------
 # CALL MAIN
@@ -146,7 +202,7 @@ if __name__ == "__main__":
 
     df_filtered = extract_hours_from_hhmm(df_filtered)
     df_filtered = df_filtered.drop(columns=['crsdeptime', 'crsarrtime'])
-
+ 
     df_filtered = add_holiday_features(df_filtered)
     df_filtered = df_filtered.drop(columns=['year', 'flight_date', 'days_from_holiday_temp'])
 
