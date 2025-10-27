@@ -8,8 +8,85 @@ import plotly.graph_objects as go
 import streamlit as st
 import plotly.graph_objects as go
 
+# --------------------------------------------------------------------------------------------------------
+# TITLE
+# --------------------------------------------------------------------------------------------------------
+
+# Set page layout
+st.set_page_config(layout="wide")
+
+### App title
+st.markdown(f"""
+<div style="text-align:center;">
+    <span style="font-weight:bold; font-size:3em;">DelayOver</span>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --------------------------------------------------------------------------------------------------------
+# COUNT CARD FIGURES
+# --------------------------------------------------------------------------------------------------------
+
+# Card styling
+card_style = f"""
+<div style="
+    background-color: #5D8199;
+    border-radius:10px;
+    padding:15px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    min-height:120px;
+    width:100%;
+    word-wrap:break-word;
+    overflow-wrap:break-word;
+">
+    <p style="
+        color: #D3DDE4;
+        font-size:1.6em;
+        font-weight:600;
+        margin:0;
+        line-height:1.5em;
+        text-align:center;
+        word-break:break-word;
+    ">{{title}}</p>
+    <p style="
+        color: white;
+        font-size:1.8em;
+        font-weight:bold;
+        margin:0;
+        line-height:1.5em;
+        text-align:center;
+        word-break:break-word;
+    ">{{metric}}</p>
+</div>
+"""
+
+spacer_left, col1, col2, col3, spacer_right = st.columns([1, 5, 5, 5, 1], gap="medium")
+
+# Example metrics
+with col1:
+    st.markdown(card_style.format(title="Total", metric="200,312"), unsafe_allow_html=True)
+
+with col2:
+    st.markdown(card_style.format(title="Delayed", metric="67,422"), unsafe_allow_html=True)
+
+with col3:
+    st.markdown(card_style.format(title="Cancelled", metric="4,068"), unsafe_allow_html=True)
+
+
+st.markdown("<br><br>", unsafe_allow_html=True)
+
+# --------------------------------------------------------------------------------------------------------
+# ON-TIME / DELAY PERCENTAGE FIGURES
+# --------------------------------------------------------------------------------------------------------
+
 # Example value
-value = 0.9
+value = 0.83
 anti_value = 1 - value
 percent = value * 100
 anti_percent = anti_value * 100
@@ -27,7 +104,7 @@ fig_ontime_perc = go.Figure(data=[
     go.Pie(
         values=[value, 1 - value, 1],  # filled, unfilled, invisible (bottom)
         rotation=270,  # start at top center
-        hole=0.65,
+        hole=0.8,
         direction="clockwise",
         marker=dict(colors=[color, "#e8e8e8", "rgba(0,0,0,0)"]),
         textinfo="none",
@@ -37,7 +114,7 @@ fig_ontime_perc = go.Figure(data=[
 ]).update_layout(
     showlegend=False,
     margin=dict(t=0, b=0, l=0, r=0),
-    height=275,
+    width=500,
     annotations=[
         dict(
             text=f"<b>{percent:.0f}%</b>",
@@ -47,23 +124,24 @@ fig_ontime_perc = go.Figure(data=[
         ),
         dict(
             text="On-Time Arrivals",
-            x=0.5, y=0.35,  # a bit lower
+            x=0.5, y=0.42,  # a bit lower
             font_size=28,
-            showarrow=False
+            showarrow=False,
+            #font_color="#5D8199"
         ),
         dict(
             text="Percentage of flights arriving within 15",
-            x=0.5, y=0.20,  # a bit lower
+            x=0.5, y=0.35,  # a bit lower
             font_size=14,
-            font_color="gray",
+            #font_color="#5D8199",
             showarrow=False
         ),
         dict(
             text="minutes of scheduled arrival",
-            x=0.5, y=0.14,  # a bit lower
+            x=0.5, y=0.28,  # a bit lower
             font_size=14,
-            font_color="gray",
-            showarrow=False
+            showarrow=False,
+            #font_color="#5D8199"
         )
     ]
 )
@@ -78,7 +156,7 @@ fig_delay_perc = go.Figure(data=[
     go.Pie(
         values=counts + [sum(counts)],  # last part invisible bottom half
         rotation=270,  # start at top center
-        hole=0.65,
+        hole=0.8,
         direction="clockwise",
         marker=dict(colors=colors + ["rgba(0,0,0,0)"]),
         textinfo="none",
@@ -88,7 +166,7 @@ fig_delay_perc = go.Figure(data=[
 ]).update_layout(
     showlegend=False,
     margin=dict(t=0, b=0, l=0, r=0),
-    height=275,
+    width=500,
     annotations=[
         dict(
             text=f"<b>{anti_percent:.0f}%</b>",
@@ -98,36 +176,31 @@ fig_delay_perc = go.Figure(data=[
         ),
         dict(
             text="Non-Weather Delays",
-            x=0.5, y=0.35,  # a bit lower
+            x=0.5, y=0.42,  # a bit lower
             font_size=28,
-            font_color="gray",
             showarrow=False
         ),
         dict(
-            text="Percentage of flights delayed by factors other",
-            x=0.5, y=0.20,  # a bit lower
+            text="Percentage of delays caused by factors other",
+            x=0.5, y=0.35,  # a bit lower
             font_size=14,
-            font_color="gray",
             showarrow=False
         ),
         dict(
             text="than weather (late, airline, etc)",
-            x=0.5, y=0.14,  # a bit lower
+            x=0.5, y=0.28,  # a bit lower
             font_size=14,
-            font_color="gray",
             showarrow=False
         )
     ]
 )
 
-col1, col2 = st.columns(2)
+spacer_left, col1, col2, spacer_right = st.columns([1, 4, 4, 1], gap="medium")
 
 with col1:
     st.plotly_chart(fig_ontime_perc, use_container_width=True)
 with col2:
     st.plotly_chart(fig_delay_perc, use_container_width=True)
-
-
 
 
 

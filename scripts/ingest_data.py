@@ -14,7 +14,7 @@ import pandas as pd
 
 BASE_URL = "https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present"
 DOWNLOAD_DIR = "data/raw"
-MAX_MONTHS_LOOKBACK = 18  # Try up to 12 months back
+MAX_MONTHS_LOOKBACK = 18  # Try up to 18 months back
 REQUIRED_MONTHS = 12  # Rolling 12 months of data
 
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)

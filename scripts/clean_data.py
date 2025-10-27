@@ -1,6 +1,6 @@
 
 
-### TODO: Map Airline Codes, Map Airport Codes, Change "if_cancelled" and other binary fields
+### TODO: Check / rewrite holiday features
 
 import pandas as pd
 import numpy as np
@@ -13,6 +13,7 @@ import os
 
 RAW_DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'raw')
 PROCESSED_DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'processed')
+MAPS_DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'maps')
 
 
 # --------------------------------------------------------------------------------------------------------
@@ -24,7 +25,7 @@ PROCESSED_DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data', 'proc
 
 def load_parquet_files(directory):
     files = [f for f in os.listdir(directory) if f.endswith('.parquet')]
-    print("Available parquet files (" + str(len(files)) + "): ", files)
+    print("\nAvailable parquet files (" + str(len(files)) + "): ", files)
     df = pd.concat([pd.read_parquet(os.path.join(directory, f)) for f in files], ignore_index=True)
     df.columns = df.columns.str.strip().str.replace(' ', '_').str.lower()
     return df
@@ -35,7 +36,7 @@ def load_parquet_files(directory):
 
 def clean_and_filter_columns(df):
     kept_cols = ['year', 'month', 'dayofmonth', 'dayofweek', 'origin', 'dest', 'reporting_airline', 
-        'originstate', 'deststate', 'crsdeptime', 'crsarrtime','carrierdelay', 'weatherdelay', 
+        'originstate', 'deststate', 'crsdeptime', 'crsarrtime','carrierdelay', 'weatherdelay', 'flight_number_reporting_airline', 
         'nasdelay', 'securitydelay', 'lateaircraftdelay', 'arrdelayminutes', 'cancelled', 'diverted']
     delay_cols = ['carrierdelay', 'weatherdelay', 'nasdelay', 'securitydelay', 
         'lateaircraftdelay', 'arrdelayminutes']
@@ -82,71 +83,20 @@ def filter_by_top_airports(df):
 ### Create features based on proximity to holidays
 # --------------------------------------------------------------------------------------------------------
 
-def add_holiday_features(df, max_window=14, sentinel=99):
+def add_date_and_holiday_features(df):
 
-    date_cols = df[['year', 'month', 'dayofmonth']].copy()
-    date_cols.rename(columns={'dayofmonth': 'day'}, inplace=True)
-    df['flight_date'] = pd.to_datetime(date_cols)
-
-    years = df['year'].unique()
-    us_holidays = holidays.US(years=years)
-
-    major_holidays = {"New Year's Day", "Memorial Day", "Independence Day", 
-        "Labor Day", "Thanksgiving", "Christmas Day"
-    }
-
-    filtered_holidays = {date: name for date, name in us_holidays.items() if name in major_holidays}
-    holiday_dates = sorted(filtered_holidays.keys())
-
-    def get_days_from_nearest_holiday(date):
-        closest_delta = None
-        for holiday in holiday_dates:
-            delta = (date.date() - holiday).days
-            if abs(delta) <= max_window:
-                if (closest_delta is None) or (abs(delta) < abs(closest_delta)):
-                    closest_delta = delta
-                    closest_holiday = holiday
-        return closest_delta
-
-    def get_nearest_holiday(date):
-        closest_delta = None
-        closest_holiday = None
-        for holiday in holiday_dates:
-            delta = (date.date() - holiday).days
-            if abs(delta) <= max_window:
-                if (closest_delta is None) or (abs(delta) < abs(closest_delta)):
-                    closest_delta = delta
-                    closest_holiday = holiday
-        return closest_holiday
-
-
-    df['days_from_holiday_temp'] = df['flight_date'].apply(get_days_from_nearest_holiday)
-    df['if_near_holiday'] = df['days_from_holiday_temp'].notna().astype(int)
-    df['days_from_holiday'] = df['days_from_holiday_temp'].fillna(sentinel).astype(int)
-
-    df['holiday'] = df['flight_date'].apply(get_nearest_holiday)
-    df['holiday'] = df['holiday'].fillna("NA")
-
-    return df
-
-def add_holiday_metrics(df):
-
-    # Step 1: Convert to datetime
+    # Convert to datetime
     df['flight_date'] = pd.to_datetime(df[['year', 'month', 'dayofmonth']].rename(columns={'dayofmonth': 'day'}))
 
-    # Step 2: Major holidays and codes
     us_holidays = holidays.US(years=df['year'].unique())
-
     major_holidays = {"New Year's Day": "A", "Memorial Day": "B", "Independence Day": "C",
-        "Labor Day": "D", "Thanksgiving Day": "E", "Christmas Day": "F"
-    }
+        "Labor Day": "D", "Thanksgiving Day": "E", "Christmas Day": "F"}
 
     # Filter to relevant holiday dates and codes
     holiday_info = [
-        (pd.Timestamp(date), code)
+        (pd.Timestamp(date), major_holidays[name])
         for date, name in us_holidays.items()
         if name in major_holidays
-        for code in [major_holidays[name]]
     ]
 
     if not holiday_info:
@@ -154,32 +104,32 @@ def add_holiday_metrics(df):
         df['holiday_code'] = 'NA'
         return df
 
-    # Step 3: Build holiday date array
+    # Build holiday date array
     holiday_dates = np.array([d[0] for d in holiday_info], dtype='datetime64[D]')
     holiday_codes = np.array([d[1] for d in holiday_info])
 
-    # Step 4: Calculate days difference (vectorized)
+    # Calculate days difference (vectorized)
     flight_dates = df['flight_date'].values.astype('datetime64[D]')
-    date_diffs = flight_dates[:, None] - holiday_dates[None, :]  # shape (N_flights, N_holidays)
-    delta_days = np.abs(date_diffs.astype('timedelta64[D]').astype(int))  # in days
+    date_diffs = flight_dates[:, None] - holiday_dates[None, :]
+    delta_days = np.abs(date_diffs.astype('timedelta64[D]').astype(int))
 
-    # Step 5: Find nearest holiday within 7 days
+    # Find nearest holiday within 7 days
     min_diff = np.min(delta_days, axis=1)
     min_idx = np.argmin(delta_days, axis=1)
 
-    # Step 6: Assign bucket based on delta
+    # Assign bucket based on delta
     bucket = np.full(len(df), 5)  # Default: 5 = not near holiday
     bucket[min_diff == 0] = 1
     bucket[(min_diff == 1)] = 2
     bucket[(min_diff >= 2) & (min_diff <= 3)] = 3
     bucket[(min_diff >= 4) & (min_diff <= 7)] = 4
 
-    # Step 7: Assign holiday code (or NA if not within range)
+    # Assign holiday code (or NA if not within range)
     code = np.array(['NA'] * len(df), dtype=object)
     within_range = min_diff <= 7
     code[within_range] = holiday_codes[min_idx[within_range]]
 
-    # Step 8: Assign to dataframe
+    # Assign to dataframe
     df['holiday_proximity_bucket'] = bucket
     df['holiday_code'] = code
 
@@ -190,60 +140,63 @@ def add_holiday_metrics(df):
 # CALL MAIN
 # --------------------------------------------------------------------------------------------------------
 
-# delays defined as more than 15 minutes
-
 if __name__ == "__main__":
 
     df_raw = load_parquet_files(RAW_DATA_DIR)
     df_clean = clean_and_filter_columns(df_raw)
-
     df_filtered = filter_valid_states(df_clean)
-    df_filtered = df_filtered.drop(columns=['originstate', 'deststate'])
-
+    df_filtered = filter_by_top_airports(df_filtered)
     df_filtered = extract_hours_from_hhmm(df_filtered)
-    df_filtered = df_filtered.drop(columns=['crsdeptime', 'crsarrtime'])
- 
-    df_filtered = add_holiday_features(df_filtered)
-    df_filtered = df_filtered.drop(columns=['year', 'flight_date', 'days_from_holiday_temp'])
+    df_final = add_date_and_holiday_features(df_filtered)
 
-    df_filtered['if_delay'] = np.where(df_filtered['arrdelayminutes'] <= 15, 0, 1)
-    df_filtered['if_cancelled'] = np.where(df_filtered['cancelled'] == 0, '0', '1').astype(int)
-    df_filtered['if_diverted'] = np.where(df_filtered['diverted'] == 0, '0', '1').astype(int)
-    df_filtered = df_filtered.drop(columns=['cancelled', 'diverted'])
-
-    df_filtered['nonweatherdelay'] = df_filtered['arrdelayminutes'] - df_filtered['weatherdelay']
-
-    df_final = filter_by_top_airports(df_filtered)
-    
-    print("*** FINAL DATASET CREATED ***")
+    print("\n*** FINAL DATASET CREATED ***")
 
 
 # --------------------------------------------------------------------------------------------------------
 # SUMMARY STATISTICS DATASET
 # --------------------------------------------------------------------------------------------------------
 
-summary_cols = ['origin', 'dest', 'reporting_airline', 'month', 'dayofweek', 'if_near_holiday']
+DELAY_SUMMARY_THRESHOLD = 15 # Delays for dashboard defined as more than 15 minutes
 
-df_summary = df_final.copy().groupby(summary_cols).agg(
-    total_flights = ('if_delay', 'count'),
-    delayed_flights = ('if_delay', 'sum'),
-    cancelled_flights = ('if_cancelled', 'sum'),
-    diverted_flights = ('if_diverted', 'sum'),
-    total_delay_minutes = ('arrdelayminutes', 'sum')
-).reset_index()
+map_airline_df = pd.read_csv(os.path.join(MAPS_DATA_DIR, 'L_UNIQUE_CARRIERS.csv'))
+map_airport_df = pd.read_csv(os.path.join(MAPS_DATA_DIR, 'L_AIRPORT.csv'))
+
+df_summary = df_final[['flight_date', 'origin', 'dest', 'reporting_airline', 'month', 'dayofweek', 'dep_hour', 'cancelled', 
+    'diverted', 'carrierdelay', 'weatherdelay', 'nasdelay', 'securitydelay', 'lateaircraftdelay', 'arrdelayminutes']].copy()
+
+df_summary['if_delay'] = np.where(df_summary['arrdelayminutes'] <= DELAY_SUMMARY_THRESHOLD, 0, 1)
+df_summary = df_summary.rename(columns={'cancelled': 'if_cancelled', 'diverted': 'if_diverted'})
+df_summary[['if_cancelled', 'if_diverted']] = df_summary[['if_cancelled', 'if_diverted']].astype(int)
+
+df_summary = df_summary.merge(map_airline_df, how='left', left_on='reporting_airline', right_on='Code')
+df_summary['airline_ui'] = df_summary['Description'].str.replace(r'\s*(Inc\.|Co\.)$', '', regex=True)
+df_summary = df_summary.drop(columns=['reporting_airline', 'Code', 'Description'])
+
+df_summary = df_summary.merge(map_airport_df, how='left', left_on='origin', right_on='Code')
+df_summary['origin_ui'] = df_summary['origin'] + ' (' + df_summary['Description'].str.split(':').str[-1].str.strip() + ')'
+df_summary = df_summary.drop(columns=['origin', 'Code', 'Description'])
+
+df_summary = df_summary.merge(map_airport_df, how='left', left_on='dest', right_on='Code')
+df_summary['destination_ui'] = df_summary['dest'] + ' (' + df_summary['Description'].str.split(':').str[-1].str.strip() + ')'
+df_summary = df_summary.drop(columns=['dest', 'Code', 'Description'])
 
 df_summary.to_parquet(PROCESSED_DATA_DIR + '/summary_dataset.parquet')
 
 print("*** SUMMARY DATASET CREATED ***")
 
+
 # --------------------------------------------------------------------------------------------------------
 # MACHINE LEARNING DATASET
 # --------------------------------------------------------------------------------------------------------
 
-ml_cols = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 
-    'if_near_holiday', 'days_from_holiday', 'arrdelayminutes']
+DELAY_ML_THRESHOLD = 30 # Delays in modeling defined as more than 30 minutes
 
-df_ml = df_final[ml_cols].copy()
+df_ml = df_final[['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 
+    'holiday_proximity_bucket', 'holiday_code', 'arrdelayminutes']].copy()
+
+df_ml['if_delay'] = np.where(df_ml['arrdelayminutes'] <= DELAY_ML_THRESHOLD, 0, 1)
+df_ml = df_ml.drop(columns=['arrdelayminutes'])
+
 df_ml.to_parquet(PROCESSED_DATA_DIR + '/ml_dataset.parquet')
 
-print("*** ML DATASET CREATED ***")
+print("*** ML DATASET CREATED ***\n")

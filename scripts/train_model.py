@@ -61,10 +61,10 @@ def prepare_data():
     df = load_data()
 
     features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket']
-    target = 'arrdelayminutes'
+    target = 'if_delay'
 
     X = df[features]
-    y = (df[target] > 30).astype(int)
+    y = df[target]
 
     return X, y
 
