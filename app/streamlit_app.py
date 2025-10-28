@@ -6,7 +6,27 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
-import plotly.graph_objects as go
+
+
+# --------------------------------------------------------------------------------------------------------
+# PRE-PROCESSING
+# --------------------------------------------------------------------------------------------------------
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
+
+# Load data
+df = pd.read_parquet(os.path.join(PROCESSED_DATA_DIR, 'summary_dataset.parquet'))
+
+
+# --------------------------------------------------------------------------------------------------------
+# COLORS
+# --------------------------------------------------------------------------------------------------------
+
+my_green = "#3AA655"
+my_yellow = "#CBA135"
+my_red = "#B04C4C"
+
 
 # --------------------------------------------------------------------------------------------------------
 # TITLE
@@ -24,39 +44,47 @@ st.markdown(f"""
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+
 # --------------------------------------------------------------------------------------------------------
 # DROPDOWNS
 # --------------------------------------------------------------------------------------------------------
 
-# --- Custom CSS to center selectbox labels ---
-st.markdown("""
-<style>
-.centered-label {
-    text-align: center !important;
-}
-</style>
-""", unsafe_allow_html=True)
+st.markdown("""<style>.centered-label {text-align: center !important;}</style>""", unsafe_allow_html=True)
 
-# --- Container for dropdowns ---
 with st.container():
-    left, col1, col2, col3, col4, col5, right = st.columns([3, 5, 5, 5, 5, 5, 3], gap="medium")
-
+    left, col1, col2, col3, col4, col5, right = st.columns([3, 5, 5, 5, 5, 5, 3], gap="small")
     with col1:
         st.markdown('<div class="centered-label">Airport (From)</div>', unsafe_allow_html=True)
-        st.selectbox("", [""] + ["Option A", "Option B", "Option C"], key="dd1")
+        origin_options = ["All Airports"] + sorted(df['origin_ui'].unique().tolist())
+        selected_origin = st.selectbox("", origin_options, key="dd1")
     with col2:
         st.markdown('<div class="centered-label">Airport (To)</div>', unsafe_allow_html=True)
-        st.selectbox("", [""] + ["Option A", "Option B", "Option C"], key="dd2")
+        destination_options = ["All Airports"] + sorted(df['destination_ui'].unique().tolist())
+        selected_destination = st.selectbox("", destination_options, key="dd2")
     with col3:
         st.markdown('<div class="centered-label">Airline</div>', unsafe_allow_html=True)
-        st.selectbox("", [""] + ["Option A", "Option B", "Option C"], key="dd3")
+        airline_options = ["All Airlines"] + sorted(df['airline_ui'].unique().tolist())
+        selected_airline = st.selectbox("", airline_options, key="dd3")
     with col4:
         st.markdown('<div class="centered-label">Date</div>', unsafe_allow_html=True)
-        st.selectbox("", [""] + ["Option A", "Option B", "Option C"], key="dd4")
+        st.selectbox("", ["All Dates"] + ["Option A", "Option B", "Option C"], key="dd4")
     with col5:
         st.markdown('<div class="centered-label">Time</div>', unsafe_allow_html=True)
-        st.selectbox("", [""] + ["Option A", "Option B", "Option C"], key="dd5")
+        st.selectbox("", ["All Times"] + ["Option A", "Option B", "Option C"], key="dd5")
 
+
+# --------------------------------------------------------------------------------------------------------
+# APPLY DROPDOWN FILTERS
+# --------------------------------------------------------------------------------------------------------
+
+filtered_df = df.copy()
+
+if selected_origin != "All Airports":
+    filtered_df = filtered_df[filtered_df["origin_ui"] == selected_origin]
+if selected_destination != "All Airports":
+    filtered_df = filtered_df[filtered_df["destination_ui"] == selected_destination]
+if selected_airline != "All Airlines":
+    filtered_df = filtered_df[filtered_df["airline_ui"] == selected_airline]
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 
@@ -64,7 +92,11 @@ st.markdown("<br><br>", unsafe_allow_html=True)
 # COUNT CARD FIGURES
 # --------------------------------------------------------------------------------------------------------
 
-# Card styling
+total = len(filtered_df)
+delayed = filtered_df["if_delay"].sum()
+diverted = filtered_df["if_diverted"].sum()
+cancelled = filtered_df["if_cancelled"].sum()
+
 card_style = f"""
 <div style="
     background-color: #5D8199;
@@ -104,59 +136,84 @@ card_style = f"""
 """
 
 spacer_left, col1, col2, col3, col4, spacer_right = st.columns([2, 5, 5, 5, 5, 2], gap="small")
-
-# Example metrics
 with col1:
-    st.markdown(card_style.format(title="Total", metric="2,800,312"), unsafe_allow_html=True)
-
+    st.markdown(card_style.format(title="Total", metric=f"{total:,}"), unsafe_allow_html=True)
 with col2:
-    st.markdown(card_style.format(title="Delayed", metric="677,422"), unsafe_allow_html=True)
-
+    st.markdown(card_style.format(title="Delayed", metric=f"{delayed:,}"), unsafe_allow_html=True)
 with col3:
-    st.markdown(card_style.format(title="Diverted", metric="4,068"), unsafe_allow_html=True)
-
+    st.markdown(card_style.format(title="Cancelled", metric=f"{cancelled:,}"), unsafe_allow_html=True)
 with col4:
-    st.markdown(card_style.format(title="Cancelled", metric="10,068"), unsafe_allow_html=True)
-
+    st.markdown(card_style.format(title="Diverted", metric=f"{diverted:,}"), unsafe_allow_html=True)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 
 # --------------------------------------------------------------------------------------------------------
-# ON-TIME / DELAY PERCENTAGE FIGURES
+# ON-TIME PERCENTAGE
 # --------------------------------------------------------------------------------------------------------
 
-# Test data
-df = pd.DataFrame({"Category": ["On-Time", "Delayed, Diverted, or Cancelled"], "Value": [2800312, 677422]})
-df["Percent"] = (df["Value"] / df["Value"].sum() * 100).round().astype(int)
-df["Label"] = ''
-# df["Label"] = df.apply(lambda x: f"{x['Category']}", axis=1)
-df["Y"] = "All"
+if filtered_df.empty:
+    total = 0
+    delayed_diverted_cancelled = 0
+    on_time = 0
+    on_time_percent = 0
+    delayed_percent = 100 - on_time_percent
+else:
+    total = len(filtered_df)
+    delayed_diverted_cancelled = filtered_df["if_delay"].sum() + filtered_df["if_diverted"].sum() + filtered_df["if_cancelled"].sum()
+    on_time = total - delayed_diverted_cancelled
+    on_time_percent = round(100 * (on_time / total)) if total > 0 else 0
+    delayed_percent = 100 - on_time_percent
 
-st.markdown(f"""
-<div style="text-align:center;">
-    <span style="font-weight:bold; font-size:2em;">On-Time Percentage: </span>
-    <span style="color: #2ECC71; font-weight:bold; font-size:2em;">77%</span>
-</div>
-""", unsafe_allow_html=True)
+if filtered_df.empty:
+    colors = ["white", "#C7C7C7"]
+elif on_time_percent > 78:
+    colors = [my_green, "#C7C7C7"]
+elif on_time_percent > 65:
+    colors = [my_yellow, "#C7C7C7"]
+else:
+    colors = [my_red, "#C7C7C7"] 
 
 
-st.markdown(f"""
-<div style="text-align:center;">
-    <span style="color: grey; font-size:1em;">Percentage of flights arriving within 15 minutes of scheduled arrival</span>
-</div>
-""", unsafe_allow_html=True)
+chart_df = pd.DataFrame({"Category": ["On-Time", "Delayed, Diverted, or Cancelled"], "Value": [on_time, delayed_diverted_cancelled]})
+if chart_df["Value"].sum() > 0:
+    chart_df["Percent"] = (chart_df["Value"] / chart_df["Value"].sum() * 100).round().astype(int)
+else:
+    chart_df["Percent"] = [0, 0]
+chart_df["Label"] = ''
+chart_df["Y"] = "All"
 
-colors = ["#2ECC71", "#c7c7c7"]
-# colors = ["#2ECC71", "#F1C40F", "#E67E22", "#E74C3C"]
+if filtered_df.empty:
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-weight:bold; font-size:2em;">On-Time Percentage: NA</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-size:1em;">No matching data was found with current filters</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Build horizontal stacked bar
+else:
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-weight:bold; font-size:2em;">On-Time Percentage: </span>
+        <span style="color: {colors[0]}; font-weight:bold; font-size:2em;">{on_time_percent}%</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-size:1em;">Percentage of flights arriving within 15 minutes of scheduled arrival</span>
+    </div>
+    """, unsafe_allow_html=True)
+
 fig = px.bar(
-    df,
+    chart_df,
     x="Percent",
     y="Y",
     color="Category",
     orientation="h",
-    text="Label",  # shows percentage inside the bar
+    text="Label",
     color_discrete_sequence=colors
 )
 
@@ -168,7 +225,7 @@ fig.update_layout(
     xaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
     xaxis_title="",
     yaxis=dict(showticklabels=False, showgrid=False, visible=False),
-    height=max(120, 80 * len(df)),
+    height=120,
     margin=dict(l=10, r=10, t=10, b=10)
 )
 
@@ -176,13 +233,10 @@ fig.update_layout(
 for trace in fig.data:
     trace.hovertemplate = f"<b>{trace.name}</b><br>%{{x}}%<extra></extra>"
 
-
 # Center chart in Streamlit
-col1, col2, col3 = st.columns([2, 24, 1])
+col1, col2, col3 = st.columns([4, 12, 3])
 with col2:
     st.plotly_chart(fig, use_container_width=True)
-
-# st.markdown("<br>", unsafe_allow_html=True)
 
 
 # --------------------------------------------------------------------------------------------------------
@@ -247,153 +301,12 @@ spacer_left, col1, col2, col3, spacer_right = st.columns([2, 7, 7, 7, 2], gap="s
 
 # Example metrics
 with col1:
-    st.markdown(card_style.format(title="27 min", metric="90%", national="National 90th Percentile: 36 min", color="#3AA655"), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="27 min", metric="90%", national="National 90th Percentile: 36 min", color=my_green), unsafe_allow_html=True)
 
 with col2:
-    st.markdown(card_style.format(title="42 min", metric="95%", national="National 95th Percentile: 36 min", color="#CBA135"), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="42 min", metric="95%", national="National 95th Percentile: 36 min", color=my_red), unsafe_allow_html=True)
 
 with col3:
-    st.markdown(card_style.format(title="232 min", metric="99%", national="National 99th Percentile: 36 min", color="#B04C4C"), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="232 min", metric="99%", national="National 99th Percentile: 36 min", color=my_yellow), unsafe_allow_html=True)
 
 st.markdown("<br><br>", unsafe_allow_html=True)
-
-
-# # Test data
-# df = pd.DataFrame({"Category": ["On-Time", "Delayed", "Diverted or Cancelled"], "Value": [2800312, 677422, 140680]})
-# df["Percent"] = (df["Value"] / df["Value"].sum() * 100).round().astype(int)
-# df["Label"] = ''
-# # df["Label"] = df.apply(lambda x: f"{x['Category']}", axis=1)
-# df["Y"] = "All"
-
-# st.markdown(f"""
-# <div style="text-align:center;">
-#     <span style="font-weight:bold; font-size:2em;">On-Time Percentage: </span>
-#     <span style="color: #2ECC71; font-weight:bold; font-size:2em;">77%</span>
-# </div>
-# """, unsafe_allow_html=True)
-
-
-# st.markdown(f"""
-# <div style="text-align:center;">
-#     <span style="color: grey; font-size:1em;">Percentage of flights arriving within 15 minutes of scheduled arrival</span>
-# </div>
-# """, unsafe_allow_html=True)
-
-# colors = ["#2ECC71", "#F1C40F", "#E74C3C"]
-# # colors = ["#2ECC71", "#F1C40F", "#E67E22", "#E74C3C"]
-
-# # Build horizontal stacked bar
-# fig = px.bar(
-#     df,
-#     x="Percent",
-#     y="Y",
-#     color="Category",
-#     orientation="h",
-#     text="Label",  # shows percentage inside the bar
-#     color_discrete_sequence=colors
-# )
-
-# # Style chart
-# fig.update_layout(
-#     barmode="stack",
-#     showlegend=False,
-#     legend_title_text=None,
-#     xaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
-#     xaxis_title="",
-#     yaxis=dict(showticklabels=False, showgrid=False, visible=False),
-#     height=max(120, 50 * len(df)),
-#     margin=dict(l=10, r=10, t=10, b=10),
-#     # plot_bgcolor="#f5f5f5",
-#     # paper_bgcolor="#e0e0e0",
-# )
-
-# # Set hovertemplate per trace
-# for trace in fig.data:
-#     trace.hovertemplate = f"<b>{trace.name}</b><br>%{{x}}%<extra></extra>"
-
-
-# # Center chart in Streamlit
-# col1, col2, col3 = st.columns([2, 24, 1])
-# with col2:
-#     st.plotly_chart(fig, use_container_width=True)
-
-
-
-
-
-
-
-# --------------------------------------------------------------------------------------------------------
-# PERCENTILE CARD FIGURES
-# --------------------------------------------------------------------------------------------------------
-
-# st.markdown(f"""
-# <div style="text-align:center;">
-#     <span style="font-weight:bold; font-size:2em;">Arrival Times</span>
-# </div>
-# """, unsafe_allow_html=True)
-
-# # Card styling
-# card_style = f"""
-
-#     <p style="
-#         color: #2ECC71;
-#         font-size:max(1.5vw, 2em);
-#         font-weight:bold;
-#         margin:0;
-#         line-height:2em;
-#         text-align:center;
-#         word-break:break-word;
-#     ">{{title}}</p>
-
-# <div style="
-#     background-color: #5D8199;
-#     border-radius:10px;
-#     padding:15px;
-#     box-shadow:0 2px 10px rgba(0,0,0,0.1);
-#     display:flex;
-#     flex-direction:column;
-#     justify-content:center;
-#     align-items:center;
-#     text-align:center;
-#     min-height:100px;
-#     width:100%;
-#     word-wrap:break-word;
-#     overflow-wrap:break-word;
-#     margin-bottom: 15px;
-# ">
-#     <p style="
-#         color: white;
-#         font-size:max(0.8vw, 1.2em);
-#         font-weight:bold;
-#         margin:0;
-#         line-height:1.2em;
-#         text-align:center;
-#         word-break:break-word;
-#     ">{{metric}}</p>
-# </div>
-#     <p style="
-#         color: grey;
-#         font-size:max(0.5vw, 0.8em);
-#         margin:0;
-#         line-height:1em;
-#         text-align:center;
-#         word-break:break-word;
-#     ">{{national}}</p><br>
-
-
-# """
-
-# spacer_left, col1, col2, col3, spacer_right = st.columns([2, 7, 7, 7, 2], gap="small")
-
-# # Example metrics
-# with col1:
-#     st.markdown(card_style.format(title="27 min", metric="90% of flights arrive within 27 minutes of scheduled arrival", national="National 90th Percentile: 36 min"), unsafe_allow_html=True)
-
-# with col2:
-#     st.markdown(card_style.format(title="42 min", metric="95% of flights arrive within 42 minutes of scheduled arrival", national="National 95th Percentile: 36 min"), unsafe_allow_html=True)
-
-# with col3:
-#     st.markdown(card_style.format(title="79 min", metric="99% of flights arrive within 79 minutes of scheduled arrival", national="National 99th Percentile: 36 min"), unsafe_allow_html=True)
-
-# st.markdown("<br><br>", unsafe_allow_html=True)
