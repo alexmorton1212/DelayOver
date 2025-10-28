@@ -4,7 +4,7 @@ import joblib
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-
+import plotly.express as px
 import streamlit as st
 import plotly.graph_objects as go
 
@@ -25,6 +25,42 @@ st.markdown(f"""
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --------------------------------------------------------------------------------------------------------
+# DROPDOWNS
+# --------------------------------------------------------------------------------------------------------
+
+# --- Custom CSS to center selectbox labels ---
+st.markdown("""
+<style>
+.centered-label {
+    text-align: center !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# --- Container for dropdowns ---
+with st.container():
+    left, col1, col2, col3, col4, col5, right = st.columns([3, 5, 5, 5, 5, 5, 3], gap="medium")
+
+    with col1:
+        st.markdown('<div class="centered-label">Airport (From)</div>', unsafe_allow_html=True)
+        st.selectbox("", [""] + ["Option A", "Option B", "Option C"], key="dd1")
+    with col2:
+        st.markdown('<div class="centered-label">Airport (To)</div>', unsafe_allow_html=True)
+        st.selectbox("", [""] + ["Option A", "Option B", "Option C"], key="dd2")
+    with col3:
+        st.markdown('<div class="centered-label">Airline</div>', unsafe_allow_html=True)
+        st.selectbox("", [""] + ["Option A", "Option B", "Option C"], key="dd3")
+    with col4:
+        st.markdown('<div class="centered-label">Date</div>', unsafe_allow_html=True)
+        st.selectbox("", [""] + ["Option A", "Option B", "Option C"], key="dd4")
+    with col5:
+        st.markdown('<div class="centered-label">Time</div>', unsafe_allow_html=True)
+        st.selectbox("", [""] + ["Option A", "Option B", "Option C"], key="dd5")
+
+
+st.markdown("<br><br>", unsafe_allow_html=True)
+
+# --------------------------------------------------------------------------------------------------------
 # COUNT CARD FIGURES
 # --------------------------------------------------------------------------------------------------------
 
@@ -40,15 +76,16 @@ card_style = f"""
     justify-content:center;
     align-items:center;
     text-align:center;
-    min-height:120px;
+    min-height:100px;
     width:100%;
     word-wrap:break-word;
     overflow-wrap:break-word;
+    margin-bottom: 15px;
 ">
     <p style="
-        color: #D3DDE4;
-        font-size:1.6em;
-        font-weight:600;
+        color: white;
+        font-size:max(0.8vw, 1.4em);
+        font-weight:350;
         margin:0;
         line-height:1.5em;
         text-align:center;
@@ -56,7 +93,7 @@ card_style = f"""
     ">{{title}}</p>
     <p style="
         color: white;
-        font-size:1.8em;
+        font-size:max(0.8vw, 1.4em);
         font-weight:bold;
         margin:0;
         line-height:1.5em;
@@ -66,17 +103,20 @@ card_style = f"""
 </div>
 """
 
-spacer_left, col1, col2, col3, spacer_right = st.columns([1, 5, 5, 5, 1], gap="medium")
+spacer_left, col1, col2, col3, col4, spacer_right = st.columns([2, 5, 5, 5, 5, 2], gap="small")
 
 # Example metrics
 with col1:
-    st.markdown(card_style.format(title="Total", metric="200,312"), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="Total", metric="2,800,312"), unsafe_allow_html=True)
 
 with col2:
-    st.markdown(card_style.format(title="Delayed", metric="67,422"), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="Delayed", metric="677,422"), unsafe_allow_html=True)
 
 with col3:
-    st.markdown(card_style.format(title="Cancelled", metric="4,068"), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="Diverted", metric="4,068"), unsafe_allow_html=True)
+
+with col4:
+    st.markdown(card_style.format(title="Cancelled", metric="10,068"), unsafe_allow_html=True)
 
 
 st.markdown("<br><br>", unsafe_allow_html=True)
@@ -85,242 +125,275 @@ st.markdown("<br><br>", unsafe_allow_html=True)
 # ON-TIME / DELAY PERCENTAGE FIGURES
 # --------------------------------------------------------------------------------------------------------
 
-# Example value
-value = 0.83
-anti_value = 1 - value
-percent = value * 100
-anti_percent = anti_value * 100
+# Test data
+df = pd.DataFrame({"Category": ["On-Time", "Delayed, Diverted, or Cancelled"], "Value": [2800312, 677422]})
+df["Percent"] = (df["Value"] / df["Value"].sum() * 100).round().astype(int)
+df["Label"] = ''
+# df["Label"] = df.apply(lambda x: f"{x['Category']}", axis=1)
+df["Y"] = "All"
 
-# Dynamic color
-color = (
-    "#E82E2E" if value <= 0.25 else
-    "#E89A2E" if value <= 0.45 else
-    "#EDE54C" if value <= 0.6 else
-    "#11BD27"
+st.markdown(f"""
+<div style="text-align:center;">
+    <span style="font-weight:bold; font-size:2em;">On-Time Percentage: </span>
+    <span style="color: #2ECC71; font-weight:bold; font-size:2em;">77%</span>
+</div>
+""", unsafe_allow_html=True)
+
+
+st.markdown(f"""
+<div style="text-align:center;">
+    <span style="color: grey; font-size:1em;">Percentage of flights arriving within 15 minutes of scheduled arrival</span>
+</div>
+""", unsafe_allow_html=True)
+
+colors = ["#2ECC71", "#c7c7c7"]
+# colors = ["#2ECC71", "#F1C40F", "#E67E22", "#E74C3C"]
+
+# Build horizontal stacked bar
+fig = px.bar(
+    df,
+    x="Percent",
+    y="Y",
+    color="Category",
+    orientation="h",
+    text="Label",  # shows percentage inside the bar
+    color_discrete_sequence=colors
 )
 
-# Create the top half donut
-fig_ontime_perc = go.Figure(data=[
-    go.Pie(
-        values=[value, 1 - value, 1],  # filled, unfilled, invisible (bottom)
-        rotation=270,  # start at top center
-        hole=0.8,
-        direction="clockwise",
-        marker=dict(colors=[color, "#e8e8e8", "rgba(0,0,0,0)"]),
-        textinfo="none",
-        hoverinfo="skip",
-        sort=False
-    )
-]).update_layout(
+# Style chart
+fig.update_layout(
+    barmode="stack",
     showlegend=False,
-    margin=dict(t=0, b=0, l=0, r=0),
-    width=500,
-    annotations=[
-        dict(
-            text=f"<b>{percent:.0f}%</b>",
-            x=0.5, y=0.6,  # centered at bottom of the half-donut
-            font_size=38,
-            showarrow=False
-        ),
-        dict(
-            text="On-Time Arrivals",
-            x=0.5, y=0.42,  # a bit lower
-            font_size=28,
-            showarrow=False,
-            #font_color="#5D8199"
-        ),
-        dict(
-            text="Percentage of flights arriving within 15",
-            x=0.5, y=0.35,  # a bit lower
-            font_size=14,
-            #font_color="#5D8199",
-            showarrow=False
-        ),
-        dict(
-            text="minutes of scheduled arrival",
-            x=0.5, y=0.28,  # a bit lower
-            font_size=14,
-            showarrow=False,
-            #font_color="#5D8199"
-        )
-    ]
+    legend_title_text=None,
+    xaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
+    xaxis_title="",
+    yaxis=dict(showticklabels=False, showgrid=False, visible=False),
+    height=max(120, 80 * len(df)),
+    margin=dict(l=10, r=10, t=10, b=10)
 )
 
-# Example counts
-counts = [30, 50, 20]  # counts for A, B, C
-labels = ["A", "B", "C"]
-colors = ["#1f77b4", "#ff7f0e", "#2ca02c"]  # customize as needed
+# Set hovertemplate per trace
+for trace in fig.data:
+    trace.hovertemplate = f"<b>{trace.name}</b><br>%{{x}}%<extra></extra>"
 
-# Create top half donut
-fig_delay_perc = go.Figure(data=[
-    go.Pie(
-        values=counts + [sum(counts)],  # last part invisible bottom half
-        rotation=270,  # start at top center
-        hole=0.8,
-        direction="clockwise",
-        marker=dict(colors=colors + ["rgba(0,0,0,0)"]),
-        textinfo="none",
-        hoverinfo="label+percent",
-        sort=False
-    )
-]).update_layout(
-    showlegend=False,
-    margin=dict(t=0, b=0, l=0, r=0),
-    width=500,
-    annotations=[
-        dict(
-            text=f"<b>{anti_percent:.0f}%</b>",
-            x=0.5, y=0.6,  # centered at bottom of the half-donut
-            font_size=38,
-            showarrow=False
-        ),
-        dict(
-            text="Non-Weather Delays",
-            x=0.5, y=0.42,  # a bit lower
-            font_size=28,
-            showarrow=False
-        ),
-        dict(
-            text="Percentage of delays caused by factors other",
-            x=0.5, y=0.35,  # a bit lower
-            font_size=14,
-            showarrow=False
-        ),
-        dict(
-            text="than weather (late, airline, etc)",
-            x=0.5, y=0.28,  # a bit lower
-            font_size=14,
-            showarrow=False
-        )
-    ]
-)
 
-spacer_left, col1, col2, spacer_right = st.columns([1, 4, 4, 1], gap="medium")
-
-with col1:
-    st.plotly_chart(fig_ontime_perc, use_container_width=True)
+# Center chart in Streamlit
+col1, col2, col3 = st.columns([2, 24, 1])
 with col2:
-    st.plotly_chart(fig_delay_perc, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
+
+# st.markdown("<br>", unsafe_allow_html=True)
+
+
+# --------------------------------------------------------------------------------------------------------
+# PERCENTILE CARD FIGURES
+# --------------------------------------------------------------------------------------------------------
+
+st.markdown(f"""
+<div style="text-align:center;">
+    <span style="font-weight:bold; font-size:2em;">Arrival Times</span>
+</div><br>
+""", unsafe_allow_html=True)
+
+# Card styling
+card_style = f"""
+
+<div style="
+    background-color: {{color}};
+    border-radius:10px;
+    padding:15px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    min-height:100px;
+    width:100%;
+    word-wrap:break-word;
+    overflow-wrap:break-word;
+    margin-bottom: 15px;
+">
+    <p style="
+        color: white;
+        font-size:max(0.8vw, 1em);
+        margin:0;
+        line-height:1.2em;
+        text-align:center;
+        word-break:break-word;
+    ">{{metric}} of flights arrive within</p>
+    <p style="
+        color: white;
+        font-size:max(1.4vw, 1.8em);
+        font-weight:bold;
+        margin:0;
+        line-height:2em;
+        text-align:center;
+        word-break:break-word;
+    ">{{title}}</p>
+    <p style="
+        color: white;
+        font-size:max(0.8vw, 1em);
+        margin:0;
+        line-height:1.2em;
+        text-align:center;
+        word-break:break-word;
+    ">of scheduled arrival time</p>
+
+</div>
+"""
+
+spacer_left, col1, col2, col3, spacer_right = st.columns([2, 7, 7, 7, 2], gap="small")
+
+# Example metrics
+with col1:
+    st.markdown(card_style.format(title="27 min", metric="90%", national="National 90th Percentile: 36 min", color="#3AA655"), unsafe_allow_html=True)
+
+with col2:
+    st.markdown(card_style.format(title="42 min", metric="95%", national="National 95th Percentile: 36 min", color="#CBA135"), unsafe_allow_html=True)
+
+with col3:
+    st.markdown(card_style.format(title="232 min", metric="99%", national="National 99th Percentile: 36 min", color="#B04C4C"), unsafe_allow_html=True)
+
+st.markdown("<br><br>", unsafe_allow_html=True)
+
+
+# # Test data
+# df = pd.DataFrame({"Category": ["On-Time", "Delayed", "Diverted or Cancelled"], "Value": [2800312, 677422, 140680]})
+# df["Percent"] = (df["Value"] / df["Value"].sum() * 100).round().astype(int)
+# df["Label"] = ''
+# # df["Label"] = df.apply(lambda x: f"{x['Category']}", axis=1)
+# df["Y"] = "All"
+
+# st.markdown(f"""
+# <div style="text-align:center;">
+#     <span style="font-weight:bold; font-size:2em;">On-Time Percentage: </span>
+#     <span style="color: #2ECC71; font-weight:bold; font-size:2em;">77%</span>
+# </div>
+# """, unsafe_allow_html=True)
+
+
+# st.markdown(f"""
+# <div style="text-align:center;">
+#     <span style="color: grey; font-size:1em;">Percentage of flights arriving within 15 minutes of scheduled arrival</span>
+# </div>
+# """, unsafe_allow_html=True)
+
+# colors = ["#2ECC71", "#F1C40F", "#E74C3C"]
+# # colors = ["#2ECC71", "#F1C40F", "#E67E22", "#E74C3C"]
+
+# # Build horizontal stacked bar
+# fig = px.bar(
+#     df,
+#     x="Percent",
+#     y="Y",
+#     color="Category",
+#     orientation="h",
+#     text="Label",  # shows percentage inside the bar
+#     color_discrete_sequence=colors
+# )
+
+# # Style chart
+# fig.update_layout(
+#     barmode="stack",
+#     showlegend=False,
+#     legend_title_text=None,
+#     xaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
+#     xaxis_title="",
+#     yaxis=dict(showticklabels=False, showgrid=False, visible=False),
+#     height=max(120, 50 * len(df)),
+#     margin=dict(l=10, r=10, t=10, b=10),
+#     # plot_bgcolor="#f5f5f5",
+#     # paper_bgcolor="#e0e0e0",
+# )
+
+# # Set hovertemplate per trace
+# for trace in fig.data:
+#     trace.hovertemplate = f"<b>{trace.name}</b><br>%{{x}}%<extra></extra>"
+
+
+# # Center chart in Streamlit
+# col1, col2, col3 = st.columns([2, 24, 1])
+# with col2:
+#     st.plotly_chart(fig, use_container_width=True)
 
 
 
 
-### USE THIS LATER
-
-# # --------------------------------------------------------------------------------------------------------
-# # Paths
-# # --------------------------------------------------------------------------------------------------------
-
-# DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "processed", "summary_dataset.parquet")
-# MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "final_model.pkl")
-
-# # --------------------------------------------------------------------------------------------------------
-# # Summary Dataframe
-# # --------------------------------------------------------------------------------------------------------
-
-# df = pd.read_parquet(DATA_PATH)
-
-# # --------------------------------------------------------------------------------------------------------
-# # Model Loading
-# # --------------------------------------------------------------------------------------------------------
-
-# with open(MODEL_PATH, "rb") as file:
-#     model = joblib.load(file)
-
-# # --------------------------------------------------------------------------------------------------------
-# # Streamlit app
-# # --------------------------------------------------------------------------------------------------------
-
-# ### App title
-# st.title("Flight Delay Prediction Dashboard")
-
-# ### Dropdown for Airlines
-# available_airlines = sorted(df['reporting_airline'].unique())
-# selected_airline = st.selectbox("Select Airline", available_airlines)
-
-# ### Dropdown for Origin Airports
-# origin_airports = sorted(df['origin'].unique())
-# selected_origin = st.selectbox("Select Origin Airport", origin_airports)
-
-# ### Dropdown for Destination Airports
-# destination_airports = sorted(df['dest'].unique())
-# selected_dest = st.selectbox("Select Destination Airport", destination_airports)
-
-# ### Date selector
-# selected_date = st.date_input("Select Flight Date")
-# selected_month = selected_date.month
-# selected_dayofweek = selected_date.weekday() + 1
-
-# ### Time selector (hour and minute)
-# selected_time = st.time_input("Select Flight Time")
-# selected_dephour = selected_time.hour
-
-# ### Holiday proximity bucket (based on date)
-# selected_holiday_bucket = 5
-
-# ### Inputs for model prediction
-# model_input = {
-#     'month': [selected_month],
-#     'dayofweek': [selected_dayofweek],
-#     'origin': [selected_origin],
-#     'dest': [selected_dest],
-#     'reporting_airline': [selected_airline],
-#     'dep_hour': [selected_dephour],
-#     'holiday_proximity_bucket': [selected_holiday_bucket]
-# }
-
-# # Delay Categories
-# def get_delay_label(prob):
-#     if prob <= 0.25: return "Delay Very Unlikely"
-#     elif prob <= 0.35: return "Delay Unlikely"
-#     elif prob <= 0.45: return "Delay Somewhat Likely"
-#     elif prob <= 0.6: return "Delay Likely"
-#     elif prob <= 0.75: return "Delay Very Likely"
-#     else: return "Delay Almost Certain (Yikes)"
-
-# X_test = pd.DataFrame(model_input)
-# prob = model.predict_proba(X_test)[0][1]
-# label = get_delay_label(prob)
-
-# st.write(f"Predicted probability of delay: {prob:.3f}")
-# st.write(f"{label}")
 
 
 
+# --------------------------------------------------------------------------------------------------------
+# PERCENTILE CARD FIGURES
+# --------------------------------------------------------------------------------------------------------
+
+# st.markdown(f"""
+# <div style="text-align:center;">
+#     <span style="font-weight:bold; font-size:2em;">Arrival Times</span>
+# </div>
+# """, unsafe_allow_html=True)
+
+# # Card styling
+# card_style = f"""
+
+#     <p style="
+#         color: #2ECC71;
+#         font-size:max(1.5vw, 2em);
+#         font-weight:bold;
+#         margin:0;
+#         line-height:2em;
+#         text-align:center;
+#         word-break:break-word;
+#     ">{{title}}</p>
+
+# <div style="
+#     background-color: #5D8199;
+#     border-radius:10px;
+#     padding:15px;
+#     box-shadow:0 2px 10px rgba(0,0,0,0.1);
+#     display:flex;
+#     flex-direction:column;
+#     justify-content:center;
+#     align-items:center;
+#     text-align:center;
+#     min-height:100px;
+#     width:100%;
+#     word-wrap:break-word;
+#     overflow-wrap:break-word;
+#     margin-bottom: 15px;
+# ">
+#     <p style="
+#         color: white;
+#         font-size:max(0.8vw, 1.2em);
+#         font-weight:bold;
+#         margin:0;
+#         line-height:1.2em;
+#         text-align:center;
+#         word-break:break-word;
+#     ">{{metric}}</p>
+# </div>
+#     <p style="
+#         color: grey;
+#         font-size:max(0.5vw, 0.8em);
+#         margin:0;
+#         line-height:1em;
+#         text-align:center;
+#         word-break:break-word;
+#     ">{{national}}</p><br>
 
 
+# """
 
-# print("\n=== Model type ===")
-# print(type(model))
+# spacer_left, col1, col2, col3, spacer_right = st.columns([2, 7, 7, 7, 2], gap="small")
 
-# # If it's a pipeline, list the steps
-# if hasattr(model, "named_steps"):
-#     print("\n=== Pipeline steps ===")
-#     for name, step in model.named_steps.items():
-#         print(f"- {name}: {type(step)}")
+# # Example metrics
+# with col1:
+#     st.markdown(card_style.format(title="27 min", metric="90% of flights arrive within 27 minutes of scheduled arrival", national="National 90th Percentile: 36 min"), unsafe_allow_html=True)
 
-#     # If there's a preprocessor, explore it
-#     preprocessor = model.named_steps.get("preprocessor", None)
-#     if preprocessor is not None:
-#         print("\n=== Preprocessor details ===")
-#         print(preprocessor)
+# with col2:
+#     st.markdown(card_style.format(title="42 min", metric="95% of flights arrive within 42 minutes of scheduled arrival", national="National 95th Percentile: 36 min"), unsafe_allow_html=True)
 
-#         # Try to print feature names if available
-#         try:
-#             feature_names = preprocessor.get_feature_names_out()
-#             print("\n=== Feature names after preprocessing ===")
-#             for f in feature_names:
-#                 print(f)
-#         except AttributeError:
-#             print("\n[!] Preprocessor does not expose feature names directly.")
-# else:
-#     print("\n[!] This model is not a Pipeline object.")
+# with col3:
+#     st.markdown(card_style.format(title="79 min", metric="99% of flights arrive within 79 minutes of scheduled arrival", national="National 99th Percentile: 36 min"), unsafe_allow_html=True)
 
-# # Some sklearn models (1.0+) also store original feature names
-# if hasattr(model, "feature_names_in_"):
-#     print("\n=== Original training feature names ===")
-#     print(model.feature_names_in_)
-# else:
-#     print("\n[!] No 'feature_names_in_' attribute found.")
-
-# print("\n=== Done inspecting model ===")
+# st.markdown("<br><br>", unsafe_allow_html=True)

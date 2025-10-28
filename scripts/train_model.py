@@ -17,19 +17,13 @@ from xgboost import XGBClassifier
 ### DIRECTORIES & GLOBAL VARIABLES
 #############################################################################################################
 
-# Random State for Replication
-
 SEED = 42
-
-### Directories
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
 MODELS_DIR = os.path.join(SCRIPT_DIR, '..', 'models')
 
-# Flight Delay Features
-
-CATEGORICAL_FEATURES = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket']
+CATEGORICAL_FEATURES = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket', 'holiday_code']
 NUMERIC_FEATURES = []
 
 # Preprocessor (Transformations for XGBoost)
@@ -60,7 +54,7 @@ def prepare_data():
 
     df = load_data()
 
-    features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket']
+    features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket', 'holiday_code']
     target = 'if_delay'
 
     X = df[features]
