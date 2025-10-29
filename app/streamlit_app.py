@@ -1,6 +1,5 @@
 
 import os
-import joblib # for future ML portion
 import calendar
 import datetime
 import streamlit as st
@@ -8,6 +7,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
+import traceback
 
 
 # --------------------------------------------------------------------------------------------------------
@@ -15,18 +15,38 @@ import streamlit as st
 # --------------------------------------------------------------------------------------------------------
 
 # Set page layout
-st.set_page_config(layout="wide")
+# st.set_page_config(layout="wide")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
 DATA_FILE = os.path.join(PROCESSED_DATA_DIR, 'summary_dataset.parquet')
 
+st.text(f"SCRIPT_DIR: {SCRIPT_DIR}")
+st.text(f"PROCESSED_DATA_DIR: {PROCESSED_DATA_DIR}")
+st.text(f"Looking for data file at: {DATA_FILE}")
+
+# List files in the folder for debugging
+try:
+    files_in_dir = os.listdir(PROCESSED_DATA_DIR)
+    st.text(f"Files in processed folder: {files_in_dir}")
+except Exception as e:
+    st.error(f"Failed to list files in {PROCESSED_DATA_DIR}: {e}")
+
 @st.cache_data
-def load_data(path):
-    if not os.path.exists(path):
-        st.error(f"Data file not found at {path}")
+def load_data(file_path: str):
+    """Load Parquet data with detailed debug info."""
+    try:
+        st.text(f"Attempting to read Parquet file: {file_path}")
+        df = pd.read_parquet(file_path)
+        st.text(f"Data loaded successfully. Shape: {df.shape}")
+        return df
+    except FileNotFoundError:
+        st.error(f"File not found at path: {file_path}")
         st.stop()
-    return pd.read_parquet(path)
+    except Exception as e:
+        st.error(f"Unexpected error while loading Parquet: {e}")
+        st.text(traceback.format_exc())
+        st.stop()
 
 df = load_data(DATA_FILE)
 
