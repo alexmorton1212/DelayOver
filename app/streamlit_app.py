@@ -20,6 +20,14 @@ st.set_page_config(layout="wide")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
 
+import traceback
+try:
+    df = pd.read_parquet(os.path.join(PROCESSED_DATA_DIR, 'summary_dataset.parquet'))
+except Exception as e:
+    st.error(f"Failed to load data: {e}")
+    st.text(traceback.format_exc())
+    st.stop()
+
 @st.cache_data
 def load_data():
     try:
