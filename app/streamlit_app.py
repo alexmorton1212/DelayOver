@@ -14,12 +14,22 @@ import streamlit as st
 # PRE-PROCESSING
 # --------------------------------------------------------------------------------------------------------
 
+# Set page layout
+st.set_page_config(layout="wide")
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
 
-# Load data
-df = pd.read_parquet(os.path.join(PROCESSED_DATA_DIR, 'summary_dataset.parquet'))
+@st.cache_data
+def load_data():
+    try:
+        df = pd.read_parquet(os.path.join(PROCESSED_DATA_DIR, 'summary_dataset.parquet'))
+    except FileNotFoundError:
+        st.error("Data file not found. Ensure 'summary_dataset.parquet' is in 'data/processed/'.")
+        st.stop()
+    return df
 
+df = load_data()
 
 # --------------------------------------------------------------------------------------------------------
 # COLORS
@@ -33,9 +43,6 @@ my_red = "#B04C4C"
 # --------------------------------------------------------------------------------------------------------
 # TITLE
 # --------------------------------------------------------------------------------------------------------
-
-# Set page layout
-st.set_page_config(layout="wide")
 
 # Remove Streamlit default padding
 st.markdown("""
