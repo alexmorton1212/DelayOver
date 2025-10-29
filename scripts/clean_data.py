@@ -162,8 +162,7 @@ DELAY_SUMMARY_THRESHOLD = 15 # Delays for dashboard defined as more than 15 minu
 map_airline_df = pd.read_csv(os.path.join(MAPS_DATA_DIR, 'L_UNIQUE_CARRIERS.csv'))
 map_airport_df = pd.read_csv(os.path.join(MAPS_DATA_DIR, 'L_AIRPORT.csv'))
 
-df_summary = df_final[['flight_date', 'origin', 'dest', 'reporting_airline', 'month', 'dayofweek', 'dep_hour', 'cancelled', 
-    'diverted', 'carrierdelay', 'weatherdelay', 'nasdelay', 'securitydelay', 'lateaircraftdelay', 'arrdelayminutes']].copy()
+df_summary = df_final[['origin', 'dest', 'reporting_airline', 'month', 'dayofweek', 'dep_hour', 'cancelled', 'diverted','arrdelayminutes']].copy()
 
 df_summary['if_delay'] = np.where(df_summary['arrdelayminutes'] <= DELAY_SUMMARY_THRESHOLD, 0, 1)
 df_summary = df_summary.rename(columns={'cancelled': 'if_cancelled', 'diverted': 'if_diverted'})
@@ -190,7 +189,7 @@ df_summary = df_summary.drop(columns=['dayofweek'])
 df_summary['hour_ui'] = pd.to_datetime(df_summary['dep_hour'], format='%H').dt.strftime('%I:%M %p')
 df_summary = df_summary.drop(columns=['dep_hour'])
 
-df_summary.to_parquet(PROCESSED_DATA_DIR + '/summary_dataset.parquet')
+df_summary.to_parquet(PROCESSED_DATA_DIR + '/summary_dataset.parquet', engine='pyarrow', use_deprecated_int96_timestamps=False)
 
 print("*** SUMMARY DATASET CREATED ***")
 
