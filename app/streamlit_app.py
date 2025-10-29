@@ -19,25 +19,16 @@ st.set_page_config(layout="wide")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
-
-import traceback
-try:
-    df = pd.read_parquet(os.path.join(PROCESSED_DATA_DIR, 'summary_dataset.parquet'))
-except Exception as e:
-    st.error(f"Failed to load data: {e}")
-    st.text(traceback.format_exc())
-    st.stop()
+DATA_FILE = os.path.join(PROCESSED_DATA_DIR, 'summary_dataset.parquet')
 
 @st.cache_data
-def load_data():
-    try:
-        df = pd.read_parquet(os.path.join(PROCESSED_DATA_DIR, 'summary_dataset.parquet'))
-    except FileNotFoundError:
-        st.error("Data file not found. Ensure 'summary_dataset.parquet' is in 'data/processed/'.")
+def load_data(path):
+    if not os.path.exists(path):
+        st.error(f"Data file not found at {path}")
         st.stop()
-    return df
+    return pd.read_parquet(path)
 
-df = load_data()
+df = load_data(DATA_FILE)
 
 # --------------------------------------------------------------------------------------------------------
 # COLORS
