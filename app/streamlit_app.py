@@ -20,41 +20,12 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
 PARQUET_FILE = os.path.join(PROCESSED_DATA_DIR, 'summary_dataset.parquet')
 
-# Display paths for debugging
-st.text(f"SCRIPT_DIR: {SCRIPT_DIR}")
-st.text(f"PROCESSED_DATA_DIR: {PROCESSED_DATA_DIR}")
-st.text(f"Looking for data file at: {PARQUET_FILE}")
-
-# List files in processed folder
-try:
-    files_in_dir = os.listdir(PROCESSED_DATA_DIR)
-    st.text(f"Files in processed folder: {files_in_dir}")
-except Exception as e:
-    st.error(f"Failed to list files in processed folder: {e}")
-    st.text(traceback.format_exc())
-    st.stop()
-
 @st.cache_data
-def load_data(file_path: str):
-    st.text("Running load_data(...)")
-    try:
-        import pyarrow  # make sure Streamlit Cloud sees this
-        st.text(f"Attempting to read Parquet file: {file_path}")
-        df = pd.read_parquet(file_path, engine='pyarrow')
-        st.text(f"Data loaded successfully! Shape: {df.shape}")
-        st.text(f"Columns: {list(df.columns)}")
-        return df
-    except FileNotFoundError:
-        st.error(f"Data file not found at path: {file_path}")
-        st.stop()
-    except Exception as e:
-        st.error(f"Unexpected error while loading Parquet: {e}")
-        st.text(traceback.format_exc())
-        st.stop()
+def load_data(file_path):
+    return pd.read_parquet(file_path, engine='pyarrow')
 
 # Call the loader
 df = load_data(PARQUET_FILE)
-st.text("Continuing with app... Data is ready!")
 
 # --------------------------------------------------------------------------------------------------------
 # COLORS

@@ -69,11 +69,11 @@ def filter_valid_states(df):
     return df[df['originstate'].isin(valid_states) & df['deststate'].isin(valid_states)].copy()
 
 
-# Filter to top 200 airports based on combined arrival and departures
+# Filter to top 75 airports based on combined arrival and departures
 # --------------------------------------------------------------------------------------------------------
 
 def filter_by_top_airports(df):
-    n = 200 # --> top 200 airports by flight volume
+    n = 15 # --> top 75 airports by flight volume
     origin = df['origin'].value_counts()
     dest = df['dest'].value_counts()
     combined = origin.add(dest, fill_value=0)
