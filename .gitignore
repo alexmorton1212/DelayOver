@@ -14,7 +14,7 @@ venv/
 
 # Data files (large data, outputs, parquet, csv, etc.)
 data/raw/*.parquet
-data/processed/*.parquet
+data/processed/ml_dataset.parquet
 
 # Logs and other temporary files
 *.log

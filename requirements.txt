@@ -21,6 +21,7 @@ cramjam==2.11.0
 debugpy==1.8.17
 decorator==5.2.1
 defusedxml==0.7.1
+duckdb==1.4.1
 executing==2.2.1
 fastjsonschema==2.21.2
 fastparquet==2024.11.0

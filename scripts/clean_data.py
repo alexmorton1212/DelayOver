@@ -5,6 +5,7 @@
 import pandas as pd
 import numpy as np
 import holidays
+import calendar
 import os
 
 # --------------------------------------------------------------------------------------------------------
@@ -179,6 +180,15 @@ df_summary = df_summary.drop(columns=['origin', 'Code', 'Description'])
 df_summary = df_summary.merge(map_airport_df, how='left', left_on='dest', right_on='Code')
 df_summary['destination_ui'] = df_summary['dest'] + ' (' + df_summary['Description'].str.split(':').str[-1].str.strip() + ')'
 df_summary = df_summary.drop(columns=['dest', 'Code', 'Description'])
+
+df_summary['month_ui'] = df_summary['month'].apply(lambda x: calendar.month_name[x])
+df_summary = df_summary.drop(columns=['month'])
+
+df_summary['day_ui'] = df_summary['dayofweek'].apply(lambda x: calendar.day_name[x-1])
+df_summary = df_summary.drop(columns=['dayofweek'])
+
+df_summary['hour_ui'] = pd.to_datetime(df_summary['dep_hour'], format='%H').dt.strftime('%I:%M %p')
+df_summary = df_summary.drop(columns=['dep_hour'])
 
 df_summary.to_parquet(PROCESSED_DATA_DIR + '/summary_dataset.parquet')
 
