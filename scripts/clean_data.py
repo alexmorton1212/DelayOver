@@ -73,7 +73,7 @@ def filter_valid_states(df):
 # --------------------------------------------------------------------------------------------------------
 
 def filter_by_top_airports(df):
-    n = 25 # --> top 75 airports by flight volume
+    n = 20 # --> top 75 airports by flight volume
     origin = df['origin'].value_counts()
     dest = df['dest'].value_counts()
     combined = origin.add(dest, fill_value=0)
