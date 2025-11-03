@@ -1,6 +1,7 @@
 
 import os
 import requests
+import re
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from zipfile import ZipFile
@@ -58,6 +59,13 @@ def try_download_zip(url: str) -> BytesIO | None:
 
             progress.close()
             zip_data.seek(0)
+
+            # Quick check to make sure it’s a ZIP
+            if zip_data.read(4) != b'PK\x03\x04':
+                print("❌ Downloaded file is not a valid ZIP archive.")
+                return None
+
+            zip_data.seek(0)
             print("✅ Download successful.")
             return zip_data
 
@@ -67,6 +75,7 @@ def try_download_zip(url: str) -> BytesIO | None:
         print(f"❌ Error during download: {e}")
 
     return None
+
 
 # --------------------------------------------------------------------------------------------------------
 # GET PARQUET FILES FROM ZIP
@@ -101,6 +110,40 @@ def extract_and_process_zip(zip_bytes: BytesIO, year: int, month: int, save_read
                     print(f"✅ Saved parquet: {parquet_path}")
 
     return readme_saved
+
+
+# --------------------------------------------------------------------------------------------------------
+# CLEANUP OLD RAW FILES OF THE SAME MONTH
+# --------------------------------------------------------------------------------------------------------
+
+def cleanup_old_files():
+    # list all flight_data parquet files
+    parquet_files = [f for f in os.listdir(DOWNLOAD_DIR) if f.startswith("flight_data_") and f.endswith(".parquet")]
+    
+    # extract year and month from file names
+    file_dates = [(f, re.match(r'flight_data_(\d{4})_(\d+)\.parquet', f)) for f in parquet_files]
+    
+    # create a dict of latest files per month
+    latest_files = {}
+    for f, m in file_dates:
+        if not m:
+            continue
+        year, month = int(m.group(1)), int(m.group(2))
+        if month not in latest_files or year > latest_files[month][0]:
+            latest_files[month] = (year, f)
+
+    # delete older files
+    for f, m in file_dates:
+        if not m:
+            continue
+        month = int(m.group(2))
+        year = int(m.group(1))
+        if latest_files[month][1] != f:
+            file_path = os.path.join(DOWNLOAD_DIR, f)
+            os.remove(file_path)
+            print(f"🗑 Deleted old parquet file: {file_path}")
+
+
 
 # --------------------------------------------------------------------------------------------------------
 # GET AND PROCESS BTS DATA
@@ -153,6 +196,8 @@ def main():
         print("⚠️ No valid BTS data found in the last 12 months.")
     elif months_found < REQUIRED_MONTHS:
         print(f"⚠️ Only found {months_found} months of data.")
+
+    cleanup_old_files()
 
 if __name__ == "__main__":
     main()

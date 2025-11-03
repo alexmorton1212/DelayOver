@@ -61,7 +61,7 @@ st.markdown("___")
 
 st.markdown(f"""
 <div style="text-align:center;">
-    <span style="font-size:1.4em;"><i>Based on <b>July 2024 - June 2025</b> Bureau of Transportation Statistics (BTS) flight data between the <b>Top 40 U.S. Airports</b></i></span>
+    <span style="font-size:1.4em;"><i>Based on <b>August 2024 - July 2025</b> Bureau of Transportation Statistics (BTS) flight data between the <b>Top 40 U.S. Airports</b></i></span>
 </div>
 """, unsafe_allow_html=True)
 
