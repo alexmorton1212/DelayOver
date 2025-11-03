@@ -1,13 +1,14 @@
 
+
+### TODO: Change from Pandas querying to DuckDB
+
 import os
 import calendar
 import datetime
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 import plotly.express as px
 import streamlit as st
-import traceback
 
 
 # --------------------------------------------------------------------------------------------------------
@@ -26,6 +27,7 @@ def load_data(file_path):
 
 # Call the loader
 df = load_data(PARQUET_FILE)
+
 
 # --------------------------------------------------------------------------------------------------------
 # COLORS
@@ -55,7 +57,13 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# st.markdown("<br>", unsafe_allow_html=True)
+st.markdown(f"""
+<div style="text-align:center;">
+    <span style="font-size:1.4em;">Based on <b>July 2024 - June 2025</b> Bureau of Transportation Statistics (BTS) flight data between the <b>Top 40 U.S. Airports</b></span>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 
 # --------------------------------------------------------------------------------------------------------
