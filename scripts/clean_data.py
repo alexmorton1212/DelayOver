@@ -1,6 +1,9 @@
 
+### NOTES:
+### Holiday features not currently being used in Summary Stats / ML development
+### Current streamlit dashboard UI/UX does not easily incorporate holiday info collection
 
-### TODO: Check / rewrite holiday features
+# --------------------------------------------------------------------------------------------------------
 
 import pandas as pd
 import numpy as np
@@ -73,7 +76,7 @@ def filter_valid_states(df):
 # --------------------------------------------------------------------------------------------------------
 
 def filter_by_top_airports(df):
-    n = 20 # --> top 75 airports by flight volume
+    n = 40 # --> TOP 20 IS BEST FOR STREAMLIT DASHBOARD CURRENTLY (PARQUET SIZE ~3.3 MB)
     origin = df['origin'].value_counts()
     dest = df['dest'].value_counts()
     combined = origin.add(dest, fill_value=0)
@@ -200,8 +203,7 @@ print("*** SUMMARY DATASET CREATED ***")
 
 DELAY_ML_THRESHOLD = 30 # Delays in modeling defined as more than 30 minutes
 
-df_ml = df_final[['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 
-    'holiday_proximity_bucket', 'holiday_code', 'arrdelayminutes']].copy()
+df_ml = df_final[['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'arrdelayminutes']].copy()
 
 df_ml['if_delay'] = np.where(df_ml['arrdelayminutes'] <= DELAY_ML_THRESHOLD, 0, 1)
 df_ml = df_ml.drop(columns=['arrdelayminutes'])

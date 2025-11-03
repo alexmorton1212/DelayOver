@@ -13,9 +13,9 @@ from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 
 
-#############################################################################################################
-### DIRECTORIES & GLOBAL VARIABLES
-#############################################################################################################
+# --------------------------------------------------------------------------------------------------------
+# SET-UP
+# --------------------------------------------------------------------------------------------------------
 
 SEED = 42
 
@@ -23,10 +23,13 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
 MODELS_DIR = os.path.join(SCRIPT_DIR, '..', 'models')
 
-CATEGORICAL_FEATURES = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket', 'holiday_code']
+CATEGORICAL_FEATURES = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour']
 NUMERIC_FEATURES = []
 
-# Preprocessor (Transformations for XGBoost)
+
+# --------------------------------------------------------------------------------------------------------
+# PRE-PROCESSOR
+# --------------------------------------------------------------------------------------------------------
 
 PREPROCESSOR = ColumnTransformer(
     transformers=[
@@ -48,13 +51,11 @@ def load_data():
 
 ### -------------------------------------------------------------------------------------------------
 
-### NEED TO FIX THIS, "DEP_HOUR" SHOULD BE CATEGORICAL
-
 def prepare_data():
 
     df = load_data()
 
-    features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'holiday_proximity_bucket', 'holiday_code']
+    features = ['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour']
     target = 'if_delay'
 
     X = df[features]

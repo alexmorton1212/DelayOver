@@ -8,9 +8,9 @@ from io import BytesIO
 from tqdm import tqdm
 import pandas as pd
 
-# ------------------------------------------------------------------------------
-# Configuration
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------
+# SET-UP
+# --------------------------------------------------------------------------------------------------------
 
 BASE_URL = "https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present"
 DOWNLOAD_DIR = "data/raw"
@@ -19,16 +19,16 @@ REQUIRED_MONTHS = 12  # Rolling 12 months of data
 
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# ------------------------------------------------------------------------------
-# Build the correct URL format (no leading zero for month)
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------
+# URL FORMATTING
+# --------------------------------------------------------------------------------------------------------
 
 def build_url(year: int, month: int) -> str:
     return f"{BASE_URL}_{year}_{month}.zip"
 
-# ------------------------------------------------------------------------------
-# Try downloading the ZIP file using streaming + long timeout + progress bar
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------
+# DOWNLOAD ZIP FILE
+# --------------------------------------------------------------------------------------------------------
 
 def try_download_zip(url: str) -> BytesIO | None:
     """Downloads a ZIP file from BTS via streaming with timeout and progress bar."""
@@ -68,9 +68,9 @@ def try_download_zip(url: str) -> BytesIO | None:
 
     return None
 
-# ------------------------------------------------------------------------------
-# Extract ZIP contents, convert CSV to Parquet, save readme.html only once
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------
+# GET PARQUET FILES FROM ZIP
+# --------------------------------------------------------------------------------------------------------
 
 def extract_and_process_zip(zip_bytes: BytesIO, year: int, month: int, save_readme: bool) -> bool:
     """
@@ -102,9 +102,9 @@ def extract_and_process_zip(zip_bytes: BytesIO, year: int, month: int, save_read
 
     return readme_saved
 
-# ------------------------------------------------------------------------------
-# Main logic: find latest 3 months with data, download and process them
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------
+# GET AND PROCESS BTS DATA
+# --------------------------------------------------------------------------------------------------------
 
 def main():
     current_date = datetime.today()
