@@ -303,7 +303,7 @@ for trace in fig.data:
 # Center chart in Streamlit
 col1, col2, col3 = st.columns([4, 12, 3])
 with col2:
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -377,6 +377,7 @@ card_style = f"""
         margin:0;
         line-height:1.2em;
         text-align:center;
+        margin-bottom:40px;
         word-break:break-word;
     ">{{national}}</p>
 """
