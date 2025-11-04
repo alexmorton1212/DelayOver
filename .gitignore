@@ -17,6 +17,7 @@ data/raw/*.parquet
 data/processed/ml_dataset.parquet
 
 # Logs and other temporary files
+dags/logs*
 *.log
 *.tmp
 

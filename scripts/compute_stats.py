@@ -53,7 +53,7 @@ print(f"Using parquet file: {os.path.join(RAW_DATA_DIR, latest_file)}")
 # COMPUTE STATS
 # --------------------------------------------------------------------------------------------------------
 
-CATEGORICAL_COLS = ["month", "dayofweek", "origin", "dest", "reporting_airline", "if_delay"]
+CATEGORICAL_COLS = ["month", "dayofweek", "origin", "dest", "reporting_airline", "dep_hour", "if_delay"]
 NUMERIC_COLS = [] # --> No numeric columns are currently used in ML model
 
 stats = {}
@@ -70,7 +70,7 @@ for col in df.columns:
             "median": df[col].median(),
         }
     else:
-        print(f"Column '{col}' not in dataframe")
+        print(f"Column '{col}' not in list")
 
 
 # --------------------------------------------------------------------------------------------------------
