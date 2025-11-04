@@ -6,14 +6,6 @@ alembic==1.17.1
 altair==5.5.0
 annotated-types==0.7.0
 anyio==4.11.0
-apache-airflow==2.7.3
-apache-airflow-core==3.1.1
-apache-airflow-providers-common-compat==1.8.0
-apache-airflow-providers-common-io==1.6.4
-apache-airflow-providers-common-sql==2.11.0
-apache-airflow-providers-smtp==2.5.0
-apache-airflow-providers-standard==2.7.0
-apache-airflow-task-sdk==1.1.1
 appnope==0.1.4
 argcomplete==3.6.3
 argon2-cffi==25.1.0
