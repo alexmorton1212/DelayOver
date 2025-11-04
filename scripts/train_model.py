@@ -6,7 +6,7 @@ import joblib
 import json
 from datetime import datetime, UTC
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import (confusion_matrix, roc_auc_score, f1_score, precision_score, recall_score)
+from sklearn.metrics import (confusion_matrix, roc_auc_score)
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
