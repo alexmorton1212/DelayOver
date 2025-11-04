@@ -1,17 +1,21 @@
-# Use a lightweight Python base image
+
 FROM python:3.12-slim
 
-# Set working directory in container
 WORKDIR /app
 
-# Copy your project files
-COPY . /app
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+COPY requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create logs directory
+COPY . .
+
 RUN mkdir -p logs
 
+ENV PYTHONUNBUFFERED=1
+
 # Command to run your main script
-CMD ["python", "dags/delay_pipeline_dag.py"]
+CMD ["streamlit", "run", "app/streamlit_app.py", "--server.port=8501", "--server.headless=true", "--server.enableCORS=false"]
