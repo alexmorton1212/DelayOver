@@ -32,13 +32,12 @@ def build_url(year: int, month: int) -> str:
 # --------------------------------------------------------------------------------------------------------
 
 def try_download_zip(url: str) -> BytesIO | None:
-    """Downloads a ZIP file from BTS via streaming with timeout and progress bar."""
     try:
-        print(f"🌐 Attempting to download: {url}")
+        print(f"--- Attempting to download: {url}")
 
         with requests.get(url, stream=True, timeout=600) as response:
             if response.status_code != 200:
-                print(f"❌ Status {response.status_code}")
+                print(f"!!! Status {response.status_code}")
                 return None
 
             total_size = int(response.headers.get('content-length', 0))
@@ -48,7 +47,7 @@ def try_download_zip(url: str) -> BytesIO | None:
                 total=total_size,
                 unit='B',
                 unit_scale=True,
-                desc="⬇️  Downloading",
+                desc=">>> Downloading",
                 ncols=80,
             )
 
@@ -62,17 +61,17 @@ def try_download_zip(url: str) -> BytesIO | None:
 
             # Quick check to make sure it’s a ZIP
             if zip_data.read(4) != b'PK\x03\x04':
-                print("❌ Downloaded file is not a valid ZIP archive.")
+                print("!!! Downloaded file is not a valid ZIP archive.")
                 return None
 
             zip_data.seek(0)
-            print("✅ Download successful.")
+            print("--- Download successful.")
             return zip_data
 
     except requests.exceptions.Timeout:
-        print("❌ Timeout occurred while downloading.")
+        print("!!! Timeout occurred while downloading.")
     except Exception as e:
-        print(f"❌ Error during download: {e}")
+        print(f"!!! Error during download: {e}")
 
     return None
 
@@ -95,11 +94,11 @@ def extract_and_process_zip(zip_bytes: BytesIO, year: int, month: int, save_read
                 readme_path = os.path.join(DOWNLOAD_DIR, "readme.html")
                 with open(readme_path, "wb") as f:
                     f.write(zip_file.read(filename))
-                print(f"📄 Saved readme.html to {readme_path}")
+                print(f"--- Saved readme.html to {readme_path}")
                 readme_saved = True
 
             elif filename.endswith(".csv"):
-                print(f"📥 Processing CSV file: {filename}")
+                print(f"--- Processing CSV file: {filename}")
                 with zip_file.open(filename) as csv_file:
                     df = pd.read_csv(csv_file, low_memory=False)
 
@@ -107,7 +106,7 @@ def extract_and_process_zip(zip_bytes: BytesIO, year: int, month: int, save_read
                     parquet_path = os.path.join(DOWNLOAD_DIR, parquet_filename)
                     df.to_parquet(parquet_path, index=False)
 
-                    print(f"✅ Saved parquet: {parquet_path}")
+                    print(f"--- Saved parquet: {parquet_path}")
 
     return readme_saved
 
@@ -141,7 +140,7 @@ def cleanup_old_files():
         if latest_files[month][1] != f:
             file_path = os.path.join(DOWNLOAD_DIR, f)
             os.remove(file_path)
-            print(f"🗑 Deleted old parquet file: {file_path}")
+            print(f"--- Deleted old parquet file: {file_path}")
 
 
 
@@ -163,13 +162,13 @@ def main():
         parquet_path = os.path.join(DOWNLOAD_DIR, parquet_filename)
 
         if os.path.exists(parquet_path):
-            print(f"📂 File already exists, skipping download: {parquet_filename}")
+            print(f"--- File already exists, skipping download: {parquet_filename}")
             months_found += 1
 
             # If it's the first found month and readme hasn't been saved, you might want to extract it.
             # Since we don't have the zip file, this is skipped unless you store the original zips.
             if months_found == 1 and not readme_saved:
-                print("ℹ️ Skipping readme.html extraction since file is already processed.")
+                print("--- Skipping readme.html extraction since file is already processed.")
             
             if months_found >= REQUIRED_MONTHS:
                 break
@@ -187,15 +186,15 @@ def main():
                 readme_saved = True
 
             months_found += 1
-            print(f"🎉 Downloaded & processed data for: {year}-{month}")
+            print(f"--- Downloaded & processed data for: {year}-{month}")
 
             if months_found >= REQUIRED_MONTHS:
                 break
 
     if months_found == 0:
-        print("⚠️ No valid BTS data found in the last 12 months.")
+        print("!!! No valid BTS data found in the last 12 months.")
     elif months_found < REQUIRED_MONTHS:
-        print(f"⚠️ Only found {months_found} months of data.")
+        print(f"!!! Only found {months_found} months of data.")
 
     cleanup_old_files()
 

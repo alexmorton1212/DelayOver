@@ -72,11 +72,11 @@ def filter_valid_states(df):
     return df[df['originstate'].isin(valid_states) & df['deststate'].isin(valid_states)].copy()
 
 
-# Filter to top 75 airports based on combined arrival and departures
+# Filter to top 40 airports based on combined arrival and departures
 # --------------------------------------------------------------------------------------------------------
 
 def filter_by_top_airports(df):
-    n = 40 # --> TOP 20 IS BEST FOR STREAMLIT DASHBOARD CURRENTLY (PARQUET SIZE ~3.3 MB)
+    n = 40 # --> Streamlit gets slower after about 40 combos of airports
     origin = df['origin'].value_counts()
     dest = df['dest'].value_counts()
     combined = origin.add(dest, fill_value=0)
@@ -84,19 +84,17 @@ def filter_by_top_airports(df):
     return df[df['origin'].isin(top_airports) & df['dest'].isin(top_airports)].copy()
 
 
-### Create features based on proximity to holidays
+### Create features based on proximity to holidays (NOT CURRENTLY USED)
 # --------------------------------------------------------------------------------------------------------
 
 def add_date_and_holiday_features(df):
 
-    # Convert to datetime
     df['flight_date'] = pd.to_datetime(df[['year', 'month', 'dayofmonth']].rename(columns={'dayofmonth': 'day'}))
 
     us_holidays = holidays.US(years=df['year'].unique())
     major_holidays = {"New Year's Day": "A", "Memorial Day": "B", "Independence Day": "C",
         "Labor Day": "D", "Thanksgiving Day": "E", "Christmas Day": "F"}
 
-    # Filter to relevant holiday dates and codes
     holiday_info = [
         (pd.Timestamp(date), major_holidays[name])
         for date, name in us_holidays.items()
@@ -108,32 +106,25 @@ def add_date_and_holiday_features(df):
         df['holiday_code'] = 'NA'
         return df
 
-    # Build holiday date array
     holiday_dates = np.array([d[0] for d in holiday_info], dtype='datetime64[D]')
     holiday_codes = np.array([d[1] for d in holiday_info])
 
-    # Calculate days difference (vectorized)
     flight_dates = df['flight_date'].values.astype('datetime64[D]')
     date_diffs = flight_dates[:, None] - holiday_dates[None, :]
     delta_days = np.abs(date_diffs.astype('timedelta64[D]').astype(int))
-
-    # Find nearest holiday within 7 days
     min_diff = np.min(delta_days, axis=1)
     min_idx = np.argmin(delta_days, axis=1)
 
-    # Assign bucket based on delta
-    bucket = np.full(len(df), 5)  # Default: 5 = not near holiday
+    bucket = np.full(len(df), 5)  # --> 5 = not near holiday
     bucket[min_diff == 0] = 1
     bucket[(min_diff == 1)] = 2
     bucket[(min_diff >= 2) & (min_diff <= 3)] = 3
     bucket[(min_diff >= 4) & (min_diff <= 7)] = 4
 
-    # Assign holiday code (or NA if not within range)
     code = np.array(['NA'] * len(df), dtype=object)
     within_range = min_diff <= 7
     code[within_range] = holiday_codes[min_idx[within_range]]
 
-    # Assign to dataframe
     df['holiday_proximity_bucket'] = bucket
     df['holiday_code'] = code
 
@@ -204,10 +195,8 @@ print("*** SUMMARY DATASET CREATED ***")
 DELAY_ML_THRESHOLD = 30 # Delays in modeling defined as more than 30 minutes
 
 df_ml = df_final[['month', 'dayofweek', 'origin', 'dest', 'reporting_airline', 'dep_hour', 'arrdelayminutes']].copy()
-
 df_ml['if_delay'] = np.where(df_ml['arrdelayminutes'] <= DELAY_ML_THRESHOLD, 0, 1)
 df_ml = df_ml.drop(columns=['arrdelayminutes'])
-
 df_ml.to_parquet(PROCESSED_DATA_DIR + '/ml_dataset.parquet')
 
 print("*** ML DATASET CREATED ***\n")
