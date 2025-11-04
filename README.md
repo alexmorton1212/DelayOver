@@ -1,9 +1,9 @@
 # DelayOver: Flight Delay Analyzer
 
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/streamlit-%E2%89%A52.12-orange)](https://streamlit.io/)
+[![Streamlit](https://img.shields.io/badge/streamlit-1.51.0-ff4b4b)](https://streamlit.io/)
 [![Docker](https://img.shields.io/badge/docker-available-lightblue)](https://www.docker.com/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+<!--[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)-->
 
 A Streamlit web application to explore and analyze flight delays using historical airline performance data from the U.S. Department of Transportation. Currently using August 2024 - July 2025 data for flights between the Top 40 U.S. Airports.  
 
@@ -42,7 +42,7 @@ docker build -t delayover_app .
 docker-compose up --build
 ```
 
-2. Open your browser at http://localhost:8501 to view the app.
+2. Open your browser at http://localhost:8501
 
 
 ### Option 2: Run with Python & Streamlit
@@ -51,7 +51,7 @@ docker-compose up --build
 
 ```bash
 git clone https://github.com/alexmorton1212/DelayOver.git
-cd flight-delay-analyzer
+cd DelayOver
 ```
 
 2. Install dependencies (virtual environment recommended):
@@ -66,4 +66,4 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-4. Open your browser at http://localhost:8501.
+4. Open your browser at http://localhost:8501
