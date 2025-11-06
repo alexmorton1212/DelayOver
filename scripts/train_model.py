@@ -17,7 +17,7 @@ from xgboost import XGBClassifier
 # SET-UP
 # --------------------------------------------------------------------------------------------------------
 
-SEED = 42
+SEED = 1212
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
@@ -38,18 +38,19 @@ PREPROCESSOR = ColumnTransformer(
     ]
 )
 
-#############################################################################################################
-### FUNCTIONS
-#############################################################################################################
-
-### -------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------
+# LOAD DATA
+# --------------------------------------------------------------------------------------------------------
 
 def load_data():
     df = pd.read_parquet(os.path.join(PROCESSED_DATA_DIR, 'ml_dataset.parquet'))
     df_sampled = df.sample(frac=0.5, random_state=SEED)
     return df_sampled
 
-### -------------------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------------
+# PREPARE FEATURES & TARGET
+# --------------------------------------------------------------------------------------------------------
 
 def prepare_data():
 
@@ -63,7 +64,10 @@ def prepare_data():
 
     return X, y
 
-### -------------------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------------
+# CREATE EVALUATION METRICS
+# --------------------------------------------------------------------------------------------------------
 
 def evaluate_metrics(y_true, y_probs, threshold):
 
@@ -107,7 +111,10 @@ def evaluate_metrics(y_true, y_probs, threshold):
         'false_negatives': fn
     }
 
-### -------------------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------------
+# CROSS-VALIDATE
+# --------------------------------------------------------------------------------------------------------
 
 def cross_validate_models(X, y, param_grid, thresholds):
 
@@ -172,7 +179,10 @@ def cross_validate_models(X, y, param_grid, thresholds):
 
     return results
 
-### -------------------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------------
+# TUNE MODEL
+# --------------------------------------------------------------------------------------------------------
 
 def tune_and_evaluate_models(X, y):
 
@@ -183,7 +193,7 @@ def tune_and_evaluate_models(X, y):
         'subsample': [0.8, 1.0]
     }
 
-    thresholds = [0.15, 0.2, 0.25, 0.3, 0.35] # thresholds near proposed boundary
+    thresholds = [0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45]
     results = cross_validate_models(X, y, param_grid, thresholds)
 
     results_df = pd.DataFrame(results)
@@ -193,7 +203,10 @@ def tune_and_evaluate_models(X, y):
 
     return results_df
 
-### -------------------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------------
+# FIND BEST MODEL
+# --------------------------------------------------------------------------------------------------------
 
 def select_and_train_best_model(X, y, results_df):
 
@@ -238,7 +251,10 @@ def select_and_train_best_model(X, y, results_df):
 
     return pipeline, best_model_label, best_threshold, best_params, best_row
 
-### -------------------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------------
+# GET THRESHOLD RESULTS FROM BEST MODEL
+# --------------------------------------------------------------------------------------------------------
 
 def evaluate_thresholds_on_full_data(pipeline, X, y):
 
@@ -257,7 +273,10 @@ def evaluate_thresholds_on_full_data(pipeline, X, y):
     threshold_df.to_csv(output_path, index=False)
     print(f"\n📊 Threshold evaluations saved to:\n{output_path}")
 
-### -------------------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------------
+# SAVE MODEL METADATA
+# --------------------------------------------------------------------------------------------------------
 
 def save_model_and_metadata(pipeline, best_model_label, best_threshold, best_params, best_row):
 
@@ -275,13 +294,7 @@ def save_model_and_metadata(pipeline, best_model_label, best_threshold, best_par
         "selected_threshold": best_threshold,
         "parameters": best_params,
         "custom_score": best_row['custom_score'],
-        "thresholds": {
-            "Delay Very Unlikely": 0.25,
-            "Delay Unlikely": best_threshold,
-            "Delay Somewhat Likely": 0.45,
-            "Delay Likely": 0.6,
-            "Delay Very Likely": 0.75
-        },
+        "thresholds": None,
         "generated_at": datetime.now(UTC).isoformat()
     }
 
@@ -291,7 +304,10 @@ def save_model_and_metadata(pipeline, best_model_label, best_threshold, best_par
     print(f"\n✅ Final model saved to: {model_path}")
     print(f"📋 Metadata saved to: {metadata_path}")
 
-### -------------------------------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------------------------------------
+# LOG MODEL TRAINING
+# --------------------------------------------------------------------------------------------------------
 
 def log_model_training(best_model_label, best_threshold, best_params, best_row):
 
@@ -315,9 +331,9 @@ def log_model_training(best_model_label, best_threshold, best_params, best_row):
     print(f"🗒️ Log updated at: {log_path}")
 
 
-#############################################################################################################
-### CALL MAIN
-#############################################################################################################
+# --------------------------------------------------------------------------------------------------------
+# RUN SCRIPT
+# --------------------------------------------------------------------------------------------------------
 
 if __name__ == '__main__':
 
