@@ -14,7 +14,8 @@ import pandas as pd
 # --------------------------------------------------------------------------------------------------------
 
 BASE_URL = "https://transtats.bts.gov/PREZIP/On_Time_Reporting_Carrier_On_Time_Performance_1987_present"
-DOWNLOAD_DIR = "data/raw"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DOWNLOAD_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'raw')
 MAX_MONTHS_LOOKBACK = 18  # Try up to 18 months back
 REQUIRED_MONTHS = 12  # Rolling 12 months of data
 
