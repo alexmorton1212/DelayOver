@@ -1,9 +1,12 @@
 
 ### TODO: Change from Pandas querying to DuckDB
+### TODO: Add ML prediction
 
 import os
 import calendar
 import datetime
+import joblib
+import json
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -16,24 +19,49 @@ import plotly.express as px
 st.set_page_config(layout="wide")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(SCRIPT_DIR, '..', 'models')
+PKL_FILE = os.path.join(MODEL_DIR, 'final_model.pkl')
+METADATA_FILE = os.path.join(MODEL_DIR, 'model_metadata.json')
 PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
 PARQUET_FILE = os.path.join(PROCESSED_DATA_DIR, 'summary_dataset.parquet')
+
+### LOAD DATA
 
 @st.cache_data
 def load_data(file_path):
     return pd.read_parquet(file_path, engine='pyarrow')
 
-# Call the loader
 df = load_data(PARQUET_FILE)
 
+### LOAD MODEL PIPELINE
+
+@st.cache_data
+def load_model(file_path):
+    return joblib.load(file_path)
+
+pipeline = load_model(PKL_FILE)
+
+### LOAD MODEL THRESHOLDS
+
+@st.cache_data
+def load_metadata(file_path):
+    with open(file_path, "r") as f:
+        metadata = json.load(f)
+    return metadata
+
+metadata = load_metadata(METADATA_FILE)
+thresholds = metadata.get("thresholds", {})
 
 # --------------------------------------------------------------------------------------------------------
 # COLORS
 # --------------------------------------------------------------------------------------------------------
 
 my_green = "#3AA655"
+my_lime = "#8EA671"
 my_yellow = "#CBA135"
+my_orange = "#BF6828"
 my_red = "#B04C4C"
+my_grey = "#8A8A8A"
 
 
 # --------------------------------------------------------------------------------------------------------
@@ -123,6 +151,9 @@ with st.container():
         st.markdown('<div class="centered-label">Departure Time</div>', unsafe_allow_html=True)
         selected_hour_label = st.selectbox("Hour", hour_options, key="dd6", label_visibility="collapsed")
 
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("___")
+
 # --------------------------------------------------------------------------------------------------------
 # APPLY DROPDOWN FILTERS
 # --------------------------------------------------------------------------------------------------------
@@ -143,43 +174,17 @@ if selected_day != "All Days":
 if selected_hour != "All Hours":
     filtered_df = filtered_df[filtered_df["hour_ui"] == selected_hour]
 
-
-# --------------------------------------------------------------------------------------------------------
-# FILTER SUMMARY (UX)
-# --------------------------------------------------------------------------------------------------------
-
-st.markdown("<br><br>", unsafe_allow_html=True) # comment if using filter summary below
-
-# st.markdown("<hr style='border:1px solid;'>", unsafe_allow_html=True)
-
-# origin_summary = f' from <b>{selected_origin.split(" (")[0]}</b>' if selected_origin != "All Airports" else ''
-# destination_summary = f' to <b>{selected_destination.split(" (")[0]}</b>' if selected_destination != "All Airports" else ''
-# airline_summary = f' with <b>{selected_airline}</b>' if selected_airline != "All Airlines" else ''
-# month_summary = f' in <b>{selected_month}</b>' if selected_month != "All Months" else ''
-# day_summary = f' on <b>{selected_day}s</b> ' if selected_day != "All Days" else ''
-# hour_ub = selected_hour.split(":")[0] + ":59 " + selected_hour.split(" ")[1]
-# hour_summary = f' departing between <b>{selected_hour}</b> and <b>{hour_ub}</b>' if selected_hour != "All Hours" else ''
-
-# filter_summary = 'Flights' + origin_summary + destination_summary + airline_summary + day_summary + month_summary + hour_summary
-# filter_ux = (
-#     'No matching data was found with current filters'
-#     if filtered_df.empty
-#     else 'All Flights from July 2024 - June 2025'
-#     if filtered_df.equals(df)
-#     else filter_summary
-# )
-# st.markdown(f"""
-#     <div style="text-align:center;">
-#         <span style="font-size:1.3em; line-height: 1em;">{filter_ux}</span>
-#     </div>
-#     """, unsafe_allow_html=True)
-
-# st.markdown("<hr style='border:1px solid;'>", unsafe_allow_html=True)
-
+st.markdown("<br>", unsafe_allow_html=True)
 
 # --------------------------------------------------------------------------------------------------------
 # COUNT CARD FIGURES
 # --------------------------------------------------------------------------------------------------------
+
+st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-weight:bold; font-size:1.7em;">Number of Flights</span>
+    </div><br>
+    """, unsafe_allow_html=True)
 
 total = len(filtered_df)
 delayed = filtered_df["if_delay"].sum()
@@ -282,6 +287,8 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
+st.markdown("<br>", unsafe_allow_html=True)
+
 fig = px.bar(
     chart_df,
     x="Percent",
@@ -311,7 +318,7 @@ for trace in fig.data:
 # Center chart in Streamlit
 col1, col2, col3 = st.columns([4, 12, 3])
 with col2:
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width='stretch', config={"displayModeBar": False})
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -319,6 +326,13 @@ st.markdown("<br>", unsafe_allow_html=True)
 # --------------------------------------------------------------------------------------------------------
 # PERCENTILE CARD FIGURES
 # --------------------------------------------------------------------------------------------------------
+
+st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-weight:bold; font-size:1.7em;">Arrival Time Percentiles</span>
+    </div><br>
+    """, unsafe_allow_html=True)
+
 
 def safe_quantile(series, q):
     val = series.quantile(q)
@@ -332,9 +346,14 @@ quant_90 = safe_quantile(filtered_df['arrdelayminutes'], 0.90)
 quant_95 = safe_quantile(filtered_df['arrdelayminutes'], 0.95)
 quant_99 = safe_quantile(filtered_df['arrdelayminutes'], 0.99)
 
-quant_90_color = my_green if quant_90 <= quant_90_all else my_yellow if quant_90 <= 1.4 * (quant_90_all) else my_red
-quant_95_color = my_green if quant_95 <= quant_95_all else my_yellow if quant_95 <= 1.3 * (quant_95_all) else my_red
-quant_99_color = my_green if quant_99 <= quant_99_all else my_yellow if quant_99 <= 1.18 * (quant_99_all) else my_red
+if filtered_df.empty:
+    quant_90_color = my_grey
+    quant_95_color = my_grey
+    quant_99_color = my_grey
+else:
+    quant_90_color = my_green if quant_90 <= quant_90_all else my_yellow if quant_90 <= 1.4 * (quant_90_all) else my_red
+    quant_95_color = my_green if quant_95 <= quant_95_all else my_yellow if quant_95 <= 1.3 * (quant_95_all) else my_red
+    quant_99_color = my_green if quant_99 <= quant_99_all else my_yellow if quant_99 <= 1.18 * (quant_99_all) else my_red
 
 
 card_style = f"""
@@ -385,8 +404,8 @@ card_style = f"""
         margin:0;
         line-height:1.2em;
         text-align:center;
-        margin-bottom:40px;
         word-break:break-word;
+        margin-bottom: 40px;
     ">{{national}}</p>
 """
 
@@ -395,3 +414,158 @@ spacer_left, col1, col2, col3, spacer_right = st.columns([2, 7, 7, 7, 2], gap="s
 with col1: st.markdown(card_style.format(title=f"{quant_90} min", metric="90%", national=f"National 90th Percentile: {quant_90_all} min", color=quant_90_color), unsafe_allow_html=True)
 with col2: st.markdown(card_style.format(title=f"{quant_95} min", metric="95%", national=f"National 95th Percentile: {quant_95_all} min", color=quant_95_color), unsafe_allow_html=True)
 with col3: st.markdown(card_style.format(title=f"{quant_99} min", metric="99%", national=f"National 99th Percentile: {quant_99_all} min", color=quant_99_color), unsafe_allow_html=True)
+
+st.markdown("___")
+st.markdown("<br>", unsafe_allow_html=True)
+
+# --------------------------------------------------------------------------------------------------------
+# PREDICTION
+# --------------------------------------------------------------------------------------------------------
+
+def get_airline_code(airline):
+    if airline == "Alaska Airlines": return "AS"
+    if airline == "Allegiant Air": return "G4"
+    if airline == "American Airlines": return "AA"
+    if airline == "Delta Air Lines": return "DL"
+    if airline == "Endeavor Air": return "9E"
+    if airline == "Envoy Air": return "MQ"
+    if airline == "Frontier Airlines": return "F9"
+    if airline == "Hawaiian Airlines": return "HA"
+    if airline == "JetBlue Airways": return "B6"
+    if airline == "PSA Airlines": return "OH"
+    if airline == "Republic Airline": return "YX"
+    if airline == "SkyWest Airlines": return "OO"
+    if airline == "Southwest Airlines": return "WN"
+    if airline == "Spirit Air Lines": return "NK"
+    if airline == "United Air Lines": return "UA"
+    return ""
+
+month = datetime.datetime.strptime(selected_month.strip(), "%B").month if selected_month != "All Months" else ""
+dayofweek = datetime.datetime.strptime(selected_day.strip(), "%A").isoweekday() if selected_day != "All Days" else ""
+origin = selected_origin[:3] if selected_origin != "All Airports" else ""
+dest = selected_destination[:3] if selected_destination != "All Airports" else ""
+reporting_airline = get_airline_code(selected_airline)
+dep_hour =  datetime.datetime.strptime(selected_hour.strip().upper(), "%I:%M %p").hour if selected_hour != "All Hours" else ""
+
+st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-weight:bold; font-size:1.7em;">Prediction</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-size:1em;">Likelihood of a 30+ minute delay</span>
+    </div><br>
+    """, unsafe_allow_html=True)
+
+pred_style = f"""
+<div style="
+    background-color: {{color}};
+    border-radius:10px;
+    padding:15px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    min-height:100px;
+    width:100%;
+    word-wrap:break-word;
+    overflow-wrap:break-word;
+    margin-bottom: 15px;
+">
+    <p style="
+        color: white;
+        font-size:max(0.8vw, 1.4em);
+        font-weight:350;
+        margin:0;
+        line-height:1.5em;
+        text-align:center;
+        word-break:break-word;
+    ">{{pred}}</p>
+</div>
+"""
+
+input_data = pd.DataFrame({
+        "month": [month],
+        "dayofweek": [dayofweek],
+        "origin": [origin.strip().upper()],
+        "dest": [dest.strip().upper()],
+        "reporting_airline": [reporting_airline.strip().upper()],
+        "dep_hour": [dep_hour]
+    })
+
+prediction = pipeline.predict(input_data)[0]
+try:
+        pred_prob = pipeline.predict_proba(input_data)[0][1]
+except Exception:
+        pred_prob = None
+
+def interpret_probability(prob, thresholds):
+    if prob is None:
+        return "No probability available"
+    sorted_thresholds = sorted(thresholds.items(), key=lambda x: x[1])
+    label = sorted_thresholds[0][0]
+    for name, value in sorted_thresholds:
+        if prob >= value:
+            label = name
+    return label
+
+fields = [month, dayofweek, origin, dest, reporting_airline, dep_hour]
+
+if any(x is not None and x != "" for x in fields):
+    delay_label = interpret_probability(pred_prob, thresholds)
+else: 
+    delay_label = "Select at least one filter to view delay prediction"
+
+
+# if all([month, dayofweek, origin, dest, reporting_airline, dep_hour]):
+
+#     input_data = pd.DataFrame({
+#         "month": [month],
+#         "dayofweek": [dayofweek],
+#         "origin": [origin.strip().upper()],
+#         "dest": [dest.strip().upper()],
+#         "reporting_airline": [reporting_airline.strip().upper()],
+#         "dep_hour": [dep_hour]
+#     })
+
+#     prediction = pipeline.predict(input_data)[0]
+#     try:
+#         pred_prob = pipeline.predict_proba(input_data)[0][1]
+#     except Exception:
+#         pred_prob = None
+
+#     def interpret_probability(prob, thresholds):
+#         if prob is None:
+#             return "No probability available"
+#         sorted_thresholds = sorted(thresholds.items(), key=lambda x: x[1])
+#         label = sorted_thresholds[0][0]
+#         for name, value in sorted_thresholds:
+#             if prob >= value:
+#                 label = name
+#         return label
+
+#     delay_label = interpret_probability(pred_prob, thresholds)
+
+# else:
+#     delay_label = "Fill in all fields to see the delay prediction"
+
+if delay_label == "Delay Very Unlikely":
+    pred_color = my_green
+elif delay_label == "Delay Unlikely":
+    pred_color = my_lime
+elif delay_label == "Delay Somewhat Likely":
+    pred_color = my_yellow
+elif delay_label == "Delay Likely":
+    pred_color = my_orange
+elif delay_label == "Delay Very Likely":
+    pred_color = my_red
+else:
+    pred_color = my_grey
+
+spacer_left, col1, spacer_right = st.columns([2, 21, 2], gap="small")
+
+with col1: st.markdown(pred_style.format(pred=f"{delay_label}", color=pred_color), unsafe_allow_html=True)
