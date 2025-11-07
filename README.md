@@ -29,6 +29,12 @@ This project uses the **On-Time Performance Data** provided by the Bureau of Tra
 - **Pandas | NumPy | Plotly | Matplotlib** for data processing and visualizations
 - **Scikit-Learn | XGBoost** for ML modeling
 
+## Workflow (DAGs)
+
+- **workflow_dag_1.py:** Runs weekly; checks for new data, cleans it, and checks for statistical drift
+- **workflow_dag_2.py:** Run if drift is detected; re-trains model and outputs analysis for thresholds
+- **workflow_dag_3.py:** Run after updating add_thresholds.py; updates metadata based on new thresholds
+
 ## Installation & Usage
 
 You can run the app locally either with Docker or by running Streamlit directly.
