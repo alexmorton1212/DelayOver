@@ -7,7 +7,7 @@
         "scale_pos_weight": 5.0,
         "subsample": 0.8
     },
-    "custom_score": 0.6915287594801437,
+    "custom_score": 0.6917611832299673,
     "thresholds": {
         "Delay Very Unlikely": 0.25,
         "Delay Unlikely": 0.35,
@@ -15,5 +15,5 @@
         "Delay Likely": 0.6,
         "Delay Very Likely": 0.75
     },
-    "generated_at": "2025-11-06T23:53:20.049970+00:00"
+    "generated_at": "2025-11-09T23:59:22.850213+00:00"
 }

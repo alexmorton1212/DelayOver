@@ -26,3 +26,6 @@ dags/logs*
 
 # macOS system files
 .DS_Store
+
+# DuckDB app version (temporary)
+app/streamlit_app_2.py

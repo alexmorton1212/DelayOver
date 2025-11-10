@@ -1,6 +1,5 @@
 
 ### TODO: Change from Pandas querying to DuckDB
-### TODO: Add ML prediction
 
 import os
 import calendar
@@ -10,6 +9,44 @@ import json
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+
+
+# --------------------------------------------------------------------------------------------------------
+# HEADER
+# --------------------------------------------------------------------------------------------------------
+
+header_container = st.container()
+
+with header_container:
+    # Remove Streamlit default padding
+    st.markdown("""
+        <style>
+            .block-container {
+                padding-top: 2rem;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Main title
+    st.markdown("""
+    <div style="text-align:center;">
+        <span style="font-weight:bold; font-size:3.2em;">DelayOver</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("___")
+
+    # Subtitle
+    st.markdown("""
+    <div style="text-align:center;">
+        <span style="font-size:1.4em;">
+            <i>Based on <b>August 2024 - July 2025</b> Bureau of Transportation Statistics (BTS)
+            flight data between the <b>Top 50 U.S. Airports</b></i>
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("___")
 
 
 # --------------------------------------------------------------------------------------------------------
@@ -62,36 +99,6 @@ my_yellow = "#CBA135"
 my_orange = "#BF6828"
 my_red = "#B04C4C"
 my_grey = "#8A8A8A"
-
-
-# --------------------------------------------------------------------------------------------------------
-# TITLE
-# --------------------------------------------------------------------------------------------------------
-
-# Remove Streamlit default padding
-st.markdown("""
-    <style>
-        .block-container {
-            padding-top: 2rem;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-st.markdown(f"""
-<div style="text-align:center;">
-    <span style="font-weight:bold; font-size:3.2em;">DelayOver</span>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("___")
-
-st.markdown(f"""
-<div style="text-align:center;">
-    <span style="font-size:1.4em;"><i>Based on <b>August 2024 - July 2025</b> Bureau of Transportation Statistics (BTS) flight data between the <b>Top 40 U.S. Airports</b></i></span>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("___")
 
 
 # --------------------------------------------------------------------------------------------------------
@@ -519,39 +526,6 @@ if any(x is not None and x != "" for x in fields):
     delay_label = interpret_probability(pred_prob, thresholds)
 else: 
     delay_label = "Select at least one filter to view delay prediction"
-
-
-# if all([month, dayofweek, origin, dest, reporting_airline, dep_hour]):
-
-#     input_data = pd.DataFrame({
-#         "month": [month],
-#         "dayofweek": [dayofweek],
-#         "origin": [origin.strip().upper()],
-#         "dest": [dest.strip().upper()],
-#         "reporting_airline": [reporting_airline.strip().upper()],
-#         "dep_hour": [dep_hour]
-#     })
-
-#     prediction = pipeline.predict(input_data)[0]
-#     try:
-#         pred_prob = pipeline.predict_proba(input_data)[0][1]
-#     except Exception:
-#         pred_prob = None
-
-#     def interpret_probability(prob, thresholds):
-#         if prob is None:
-#             return "No probability available"
-#         sorted_thresholds = sorted(thresholds.items(), key=lambda x: x[1])
-#         label = sorted_thresholds[0][0]
-#         for name, value in sorted_thresholds:
-#             if prob >= value:
-#                 label = name
-#         return label
-
-#     delay_label = interpret_probability(pred_prob, thresholds)
-
-# else:
-#     delay_label = "Fill in all fields to see the delay prediction"
 
 if delay_label == "Delay Very Unlikely":
     pred_color = my_green

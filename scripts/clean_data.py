@@ -76,7 +76,7 @@ def filter_valid_states(df):
 # --------------------------------------------------------------------------------------------------------
 
 def filter_by_top_airports(df):
-    n = 40 # --> Streamlit gets slower after about 40 combos of airports
+    n = 50 # --> Streamlit gets slower after about 40 combos of airports
     origin = df['origin'].value_counts()
     dest = df['dest'].value_counts()
     combined = origin.add(dest, fill_value=0)
