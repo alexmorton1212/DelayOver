@@ -502,7 +502,6 @@ with col2_2:
     st.markdown(f"""
     <div style="text-align:center;">
         <span style="font-size:1em;">Landed within 15 min of schedule</span>
-        <span style="font-size:1em;">Likelihood of a 30+ min delay</span>
     </div><br>
     """, unsafe_allow_html=True)
 
