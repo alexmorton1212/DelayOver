@@ -29,3 +29,4 @@ dags/logs*
 
 # DuckDB app version (temporary)
 app/streamlit_app_2.py
+app/streamlit_app_archive.py

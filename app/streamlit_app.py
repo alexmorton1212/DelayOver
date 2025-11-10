@@ -11,21 +11,16 @@ import pandas as pd
 import plotly.express as px
 
 
-# --------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------------------------
 # HEADER
-# --------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------------------------
 
 header_container = st.container()
 
 with header_container:
+
     # Remove Streamlit default padding
-    st.markdown("""
-        <style>
-            .block-container {
-                padding-top: 2rem;
-            }
-        </style>
-    """, unsafe_allow_html=True)
+    st.markdown("""<style>.block-container {padding-top: 2rem;}</style>""", unsafe_allow_html=True)
 
     # Main title
     st.markdown("""
@@ -49,9 +44,9 @@ with header_container:
     st.markdown("___")
 
 
-# --------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------------------------
 # PRE-PROCESSING
-# --------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------------------------
 
 st.set_page_config(layout="wide")
 
@@ -63,35 +58,30 @@ PROCESSED_DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data', 'processed')
 PARQUET_FILE = os.path.join(PROCESSED_DATA_DIR, 'summary_dataset.parquet')
 
 ### LOAD DATA
-
 @st.cache_data
 def load_data(file_path):
     return pd.read_parquet(file_path, engine='pyarrow')
-
 df = load_data(PARQUET_FILE)
 
 ### LOAD MODEL PIPELINE
-
 @st.cache_data
 def load_model(file_path):
     return joblib.load(file_path)
-
 pipeline = load_model(PKL_FILE)
 
 ### LOAD MODEL THRESHOLDS
-
 @st.cache_data
 def load_metadata(file_path):
     with open(file_path, "r") as f:
         metadata = json.load(f)
     return metadata
-
 metadata = load_metadata(METADATA_FILE)
 thresholds = metadata.get("thresholds", {})
 
-# --------------------------------------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------------------------------------------------------------------
 # COLORS
-# --------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------------------------
 
 my_green = "#3AA655"
 my_lime = "#8EA671"
@@ -100,10 +90,17 @@ my_orange = "#BF6828"
 my_red = "#B04C4C"
 my_grey = "#8A8A8A"
 
+my_green_box = "#256B37"
+my_lime_box = "#5E6E4C"
+my_yellow_box = "#8A6D22"
+my_orange_box = "#703D16"
+my_red_box = "#662A2A"
+my_grey_box = "#616161"
 
-# --------------------------------------------------------------------------------------------------------
-# DROPDOWNS
-# --------------------------------------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------------------------------------------------------------------
+# FUNCTIONS
+# -----------------------------------------------------------------------------------------------------------------------------------------
 
 def generate_hour_labels():
     hours = []
@@ -113,6 +110,33 @@ def generate_hour_labels():
         label = f"{start} - {end}"
         hours.append(label)
     return hours
+
+def get_airline_code(airline: str) -> str:
+    codes = {"Alaska Airlines": "AS", "Allegiant Air": "G4", "American Airlines": "AA", "Delta Air Lines": "DL",
+        "Endeavor Air": "9E", "Envoy Air": "MQ", "Frontier Airlines": "F9", "Hawaiian Airlines": "HA",
+        "JetBlue Airways": "B6", "PSA Airlines": "OH", "Republic Airline": "YX", "SkyWest Airlines": "OO",
+        "Southwest Airlines": "WN", "Spirit Air Lines": "NK", "United Air Lines": "UA"
+    }
+    return codes.get(airline, "")
+
+def get_prob_label(prob, thresholds):
+    if prob is None:
+        return "No probability available"
+    sorted_thresholds = sorted(thresholds.items(), key=lambda x: x[1])
+    label = sorted_thresholds[0][0]
+    for name, value in sorted_thresholds:
+        if prob >= value:
+            label = name
+    return label
+
+def safe_quantile(series, q):
+    val = series.quantile(q)
+    return int(val) if pd.notnull(val) else 0
+
+
+# -----------------------------------------------------------------------------------------------------------------------------------------
+# DROPDOWNS
+# -----------------------------------------------------------------------------------------------------------------------------------------
 
 origin_options = ["All Airports"] + sorted(df['origin_ui'].unique().tolist())
 destination_options = ["All Airports"] + sorted(df['destination_ui'].unique().tolist())
@@ -161,9 +185,10 @@ with st.container():
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("___")
 
-# --------------------------------------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------------------------------------------------------------------
 # APPLY DROPDOWN FILTERS
-# --------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------------------------
 
 filtered_df = df
 selected_hour = hour_map.get(selected_hour_label, "All Hours")
@@ -183,41 +208,108 @@ if selected_hour != "All Hours":
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --------------------------------------------------------------------------------------------------------
-# COUNT CARD FIGURES
-# --------------------------------------------------------------------------------------------------------
 
-st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-weight:bold; font-size:1.7em;">Number of Flights</span>
-    </div><br>
-    """, unsafe_allow_html=True)
+# -----------------------------------------------------------------------------------------------------------------------------------------
+# CALCULATIONS
+# -----------------------------------------------------------------------------------------------------------------------------------------
 
-total = len(filtered_df)
-delayed = filtered_df["if_delay"].sum()
-diverted = filtered_df["if_diverted"].sum()
-cancelled = filtered_df["if_cancelled"].sum()
+### Number of Flights
 
-card_style = f"""
+total_nf = len(filtered_df)
+delayed_nf = filtered_df["if_delay"].sum()
+diverted_nf = filtered_df["if_diverted"].sum()
+cancelled_nf = filtered_df["if_cancelled"].sum()
+
+### On-Time Percentage
+
+total_otp = 0 if filtered_df.empty else len(filtered_df)
+other_otp = 0 if filtered_df.empty else filtered_df["if_delay"].sum() + filtered_df["if_diverted"].sum() + filtered_df["if_cancelled"].sum()
+on_time_otp = total_otp - other_otp
+on_time_percent_otp = 0 if filtered_df.empty else round(100 * (on_time_otp / total_otp)) if total_otp > 0 else 0
+
+total_all_otp = len(df)
+other_all_otp = df["if_delay"].sum() + df["if_diverted"].sum() + df["if_cancelled"].sum()
+on_time_percent_all_otp = round(100 * (total_all_otp - other_all_otp) / total_all_otp)
+
+if filtered_df.empty: colors_otp = [my_grey, "#C7C7C7"]
+elif on_time_percent_otp >= on_time_percent_all_otp: colors_otp = [my_green, "#C7C7C7"]
+elif on_time_percent_otp >= 0.85 * on_time_percent_all_otp: colors_otp = [my_yellow, "#C7C7C7"]
+else: colors_otp = [my_red, "#C7C7C7"] 
+
+if filtered_df.empty: box_colors_otp = my_grey_box
+elif on_time_percent_otp >= on_time_percent_all_otp: box_colors_otp = my_green_box
+elif on_time_percent_otp >= 0.85 * on_time_percent_all_otp: box_colors_otp = my_yellow_box
+else: box_colors_otp = my_red_box
+
+on_time_percent_otp = "NA" if filtered_df.empty else str(on_time_percent_otp) + "%"
+
+### Percentiles
+
+quant_90_all = safe_quantile(df['arrdelayminutes'], 0.90)
+quant_95_all = safe_quantile(df['arrdelayminutes'], 0.95)
+quant_99_all = safe_quantile(df['arrdelayminutes'], 0.99)
+quant_90 = safe_quantile(filtered_df['arrdelayminutes'], 0.90)
+quant_95 = safe_quantile(filtered_df['arrdelayminutes'], 0.95)
+quant_99 = safe_quantile(filtered_df['arrdelayminutes'], 0.99)
+quant_90_color = my_grey if filtered_df.empty else my_green if quant_90 <= quant_90_all else my_yellow if quant_90 <= 1.4 * (quant_90_all) else my_red
+quant_95_color = my_grey if filtered_df.empty else my_green if quant_95 <= quant_95_all else my_yellow if quant_95 <= 1.3 * (quant_95_all) else my_red
+quant_99_color = my_grey if filtered_df.empty else my_green if quant_99 <= quant_99_all else my_yellow if quant_99 <= 1.18 * (quant_99_all) else my_red
+quant_90_box = my_grey_box if filtered_df.empty else my_green_box if quant_90 <= quant_90_all else my_yellow_box if quant_90 <= 1.4 * (quant_90_all) else my_red_box
+quant_95_box = my_grey_box if filtered_df.empty else my_green_box if quant_95 <= quant_95_all else my_yellow_box if quant_95 <= 1.3 * (quant_95_all) else my_red_box if not filtered_df.empty else my_grey_box
+quant_99_box = my_grey_box if filtered_df.empty else my_green_box if quant_99 <= quant_99_all else my_yellow_box if quant_99 <= 1.18 * (quant_99_all) else my_red_box if not filtered_df.empty else my_grey_box
+quant_90 = "NA" if filtered_df.empty else str(quant_90) + " min"
+quant_95 = "NA" if filtered_df.empty else str(quant_95) + " min"
+quant_99 = "NA" if filtered_df.empty else str(quant_99) + " min"
+
+### Prediction
+
+month_pred = datetime.datetime.strptime(selected_month.strip(), "%B").month if selected_month != "All Months" else ""
+dayofweek_pred = datetime.datetime.strptime(selected_day.strip(), "%A").isoweekday() if selected_day != "All Days" else ""
+origin_pred = selected_origin[:3] if selected_origin != "All Airports" else ""
+dest_pred = selected_destination[:3] if selected_destination != "All Airports" else ""
+reporting_airline_pred = get_airline_code(selected_airline)
+dep_hour_pred =  datetime.datetime.strptime(selected_hour.strip().upper(), "%I:%M %p").hour if selected_hour != "All Hours" else ""
+fields_pred = [month_pred, dayofweek_pred, origin_pred, dest_pred, reporting_airline_pred, dep_hour_pred]
+
+data_pred = pd.DataFrame({"month": [month_pred], "dayofweek": [dayofweek_pred], "origin": [origin_pred.strip().upper()],
+    "dest": [dest_pred.strip().upper()], "reporting_airline": [reporting_airline_pred.strip().upper()], "dep_hour": [dep_hour_pred]})
+prediction = pipeline.predict(data_pred)[0]
+try: pred_prob = pipeline.predict_proba(data_pred)[0][1]
+except Exception: pred_prob = None
+
+delay_label = get_prob_label(pred_prob, thresholds) if any(x is not None and x != "" for x in fields_pred) else "Select a filter to view delay prediction"
+if delay_label == "Delay Very Unlikely": pred_color, pred_color_box = my_green, my_green_box
+elif delay_label == "Delay Unlikely": pred_color, pred_color_box = my_lime, my_lime_box
+elif delay_label == "Delay Somewhat Likely": pred_color, pred_color_box = my_yellow, my_yellow_box
+elif delay_label == "Delay Likely": pred_color, pred_color_box = my_orange, my_orange_box
+elif delay_label == "Delay Very Likely": pred_color, pred_color_box = my_red, my_red_box
+else: pred_color, pred_color_box = my_grey, my_grey_box
+
+
+# -----------------------------------------------------------------------------------------------------------------------------------------
+# STYLES
+# -----------------------------------------------------------------------------------------------------------------------------------------
+
+nf_card_style = f"""
 <div style="
-    background-color: #5D8199;
-    border-radius:10px;
+    background-color: {{color}};
+    border-radius:40px;
     padding:15px;
-    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    box-shadow:0 10px 0 0 #303d52;
     display:flex;
     flex-direction:column;
     justify-content:center;
     align-items:center;
     text-align:center;
-    min-height:100px;
+    min-height:60px;
     width:100%;
     word-wrap:break-word;
     overflow-wrap:break-word;
-    margin-bottom: 15px;
+    margin-bottom: 40px;
 ">
     <p style="
         color: white;
-        font-size:max(0.8vw, 1.4em);
+        font-size:max(1vw, 1.2em);
         font-weight:350;
         margin:0;
         line-height:1.5em;
@@ -226,7 +318,7 @@ card_style = f"""
     ">{{title}}</p>
     <p style="
         color: white;
-        font-size:max(0.8vw, 1.4em);
+        font-size:max(1.2vw, 1.5em);
         font-weight:bold;
         margin:0;
         line-height:1.5em;
@@ -236,149 +328,80 @@ card_style = f"""
 </div>
 """
 
-spacer_left, col1, col2, col3, col4, spacer_right = st.columns([2, 5, 5, 5, 5, 2], gap="small")
-with col1: st.markdown(card_style.format(title="Total", metric=f"{total:,}"), unsafe_allow_html=True)
-with col2: st.markdown(card_style.format(title="Delayed", metric=f"{delayed:,}"), unsafe_allow_html=True)
-with col3: st.markdown(card_style.format(title="Cancelled", metric=f"{cancelled:,}"), unsafe_allow_html=True)
-with col4: st.markdown(card_style.format(title="Diverted", metric=f"{diverted:,}"), unsafe_allow_html=True)
-
-st.markdown("<br><br>", unsafe_allow_html=True)
-
-# --------------------------------------------------------------------------------------------------------
-# ON-TIME PERCENTAGE
-# --------------------------------------------------------------------------------------------------------
-
-total = 0 if filtered_df.empty else len(filtered_df)
-other = 0 if filtered_df.empty else filtered_df["if_delay"].sum() + filtered_df["if_diverted"].sum() + filtered_df["if_cancelled"].sum()
-on_time = total - other
-on_time_percent = 0 if filtered_df.empty else round(100 * (on_time / total)) if total > 0 else 0
-delayed_percent = 100 - on_time_percent
-
-total_all = len(df)
-other_all = df["if_delay"].sum() + df["if_diverted"].sum() + df["if_cancelled"].sum()
-on_time_percent_all = round(100 * (total_all - other_all) / total_all)
-
-if filtered_df.empty: colors = ["white", "#C7C7C7"]
-elif on_time_percent >= on_time_percent_all: colors = [my_green, "#C7C7C7"]
-elif on_time_percent >= 0.85 * on_time_percent_all: colors = [my_yellow, "#C7C7C7"]
-else: colors = [my_red, "#C7C7C7"] 
-
-chart_df = pd.DataFrame({"Category": ["On-Time", "Delayed, Diverted, or Cancelled"], "Value": [on_time, other]})
-if chart_df["Value"].sum() > 0: chart_df["Percent"] = (chart_df["Value"] / chart_df["Value"].sum() * 100).round().astype(int)
-else: chart_df["Percent"] = [0, 0]
-chart_df["Label"] = ''
-chart_df["Y"] = "All"
-
-if filtered_df.empty:
-    st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-weight:bold; font-size:1.7em;">On-Time Percentage: NA</span>
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-size:1em;">No matching data was found with current filters</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-else:
-    st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-weight:bold; font-size:1.7em;">On-Time Percentage: </span>
-        <span style="color: {colors[0]}; font-weight:bold; font-size:1.7em;">{on_time_percent}%</span>
-    </div>
-    """, unsafe_allow_html=True)
-    st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-size:1em;">Flights that landed within 15 minutes of scheduled arrival</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-fig = px.bar(
-    chart_df,
-    x="Percent",
-    y="Y",
-    color="Category",
-    orientation="h",
-    text="Label",
-    color_discrete_sequence=colors
-)
-
-# Style chart
-fig.update_layout(
-    barmode="stack",
-    showlegend=False,
-    legend_title_text=None,
-    xaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
-    xaxis_title="",
-    yaxis=dict(showticklabels=False, showgrid=False, visible=False),
-    height=100,
-    margin=dict(l=10, r=10, t=10, b=10)
-)
-
-# Set hovertemplate per trace
-for trace in fig.data:
-    trace.hovertemplate = f"<b>{trace.name}</b><br>%{{x}}%<extra></extra>"
-
-# Center chart in Streamlit
-col1, col2, col3 = st.columns([4, 12, 3])
-with col2:
-    st.plotly_chart(fig, width='stretch', config={"displayModeBar": False})
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-
-# --------------------------------------------------------------------------------------------------------
-# PERCENTILE CARD FIGURES
-# --------------------------------------------------------------------------------------------------------
-
-st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-weight:bold; font-size:1.7em;">Arrival Time Percentiles</span>
-    </div><br>
-    """, unsafe_allow_html=True)
-
-
-def safe_quantile(series, q):
-    val = series.quantile(q)
-    return int(val) if pd.notnull(val) else 0
-
-quant_90_all = safe_quantile(df['arrdelayminutes'], 0.90)
-quant_95_all = safe_quantile(df['arrdelayminutes'], 0.95)
-quant_99_all = safe_quantile(df['arrdelayminutes'], 0.99)
-
-quant_90 = safe_quantile(filtered_df['arrdelayminutes'], 0.90)
-quant_95 = safe_quantile(filtered_df['arrdelayminutes'], 0.95)
-quant_99 = safe_quantile(filtered_df['arrdelayminutes'], 0.99)
-
-if filtered_df.empty:
-    quant_90_color = my_grey
-    quant_95_color = my_grey
-    quant_99_color = my_grey
-else:
-    quant_90_color = my_green if quant_90 <= quant_90_all else my_yellow if quant_90 <= 1.4 * (quant_90_all) else my_red
-    quant_95_color = my_green if quant_95 <= quant_95_all else my_yellow if quant_95 <= 1.3 * (quant_95_all) else my_red
-    quant_99_color = my_green if quant_99 <= quant_99_all else my_yellow if quant_99 <= 1.18 * (quant_99_all) else my_red
-
-
-card_style = f"""
+pred_style = f"""
 <div style="
     background-color: {{color}};
-    border-radius:10px;
+    border-radius:50px;
     padding:15px;
-    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+    box-shadow:0 10px 0 0 {{box_color}};
     display:flex;
     flex-direction:column;
     justify-content:center;
     align-items:center;
     text-align:center;
-    min-height:100px;
+    min-height:50px;
     width:100%;
     word-wrap:break-word;
     overflow-wrap:break-word;
     margin-bottom: 15px;
+">
+    <p style="
+        color: white;
+        font-size:max(1vw, 1.6em);
+        font-weight:500;
+        margin:0;
+        line-height:1.5em;
+        text-align:center;
+        word-break:break-word;
+    ">{{pred}}</p>
+</div>
+"""
+
+otp_style = f"""
+<div style="
+    background-color: {{color}};
+    border-radius:50px;
+    padding:15px;
+    box-shadow:0 10px 0 0 {{box_color}};
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    min-height:50px;
+    width:100%;
+    word-wrap:break-word;
+    overflow-wrap:break-word;
+    margin-bottom: 15px;
+">
+    <p style="
+        color: white;
+        font-size:max(1vw, 1.6em);
+        font-weight:500;
+        margin:0;
+        line-height:1.5em;
+        text-align:center;
+        word-break:break-word;
+    ">{{percent}}</p>
+</div>
+"""
+
+perc_card_style = f"""
+<div style="
+    background-color: {{color}};
+    border-radius:100px;
+    padding:15px;
+    box-shadow:0 10px 0 0 {{box_color}};
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    min-height:80px;
+    width:100%;
+    word-wrap:break-word;
+    overflow-wrap:break-word;
+    margin-bottom: 25px;
 ">
     <p style="
         color: white;
@@ -393,7 +416,7 @@ card_style = f"""
         font-size:max(1.4vw, 1.8em);
         font-weight:bold;
         margin:0;
-        line-height:2em;
+        line-height:1.5em;
         text-align:center;
         word-break:break-word;
     ">{{title}}</p>
@@ -406,140 +429,136 @@ card_style = f"""
         word-break:break-word;
     ">of scheduled arrival time</p>
 </div>
-    <p style="
-        font-size:max(0.8vw, 1em);
-        margin:0;
-        line-height:1.2em;
-        text-align:center;
-        word-break:break-word;
-        margin-bottom: 40px;
-    ">{{national}}</p>
 """
 
-spacer_left, col1, col2, col3, spacer_right = st.columns([2, 7, 7, 7, 2], gap="small")
+# -----------------------------------------------------------------------------------------------------------------------------------------
+# DASHBOARD SECTION 1: NUMBER OF FLIGHTS
+# -----------------------------------------------------------------------------------------------------------------------------------------
 
-with col1: st.markdown(card_style.format(title=f"{quant_90} min", metric="90%", national=f"National 90th Percentile: {quant_90_all} min", color=quant_90_color), unsafe_allow_html=True)
-with col2: st.markdown(card_style.format(title=f"{quant_95} min", metric="95%", national=f"National 95th Percentile: {quant_95_all} min", color=quant_95_color), unsafe_allow_html=True)
-with col3: st.markdown(card_style.format(title=f"{quant_99} min", metric="99%", national=f"National 99th Percentile: {quant_99_all} min", color=quant_99_color), unsafe_allow_html=True)
+spacer_left_1, col1_1, spacer_right_1 = st.columns([2, 20, 2], gap="small")
 
-st.markdown("___")
+# -- NUMBER OF FLIGHTS
+
+with col1_1:
+
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-weight:bold; font-size:1.7em;">Number of Flights</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-size:1em;">Flights that land 15+ minutes after scheduled arrival are considered delayed</span>
+    </div><br>
+    """, unsafe_allow_html=True)
+
+    subcol1_1, subcol2_1, subcol3_1, subcol4_1 = st.columns([1, 1, 1, 1], gap="medium")
+
+    with subcol1_1: st.markdown(nf_card_style.format(title="Total", metric=f"{total_nf:,}", color="#5D8199"), unsafe_allow_html=True)
+    with subcol2_1: st.markdown(nf_card_style.format(title="Delayed", metric=f"{delayed_nf:,}", color="#5D8199"), unsafe_allow_html=True)
+    with subcol3_1: st.markdown(nf_card_style.format(title="Cancelled", metric=f"{cancelled_nf:,}", color="#5D8199"), unsafe_allow_html=True)
+    with subcol4_1: st.markdown(nf_card_style.format(title="Diverted", metric=f"{diverted_nf:,}", color="#5D8199"), unsafe_allow_html=True)
+
+
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --------------------------------------------------------------------------------------------------------
-# PREDICTION
-# --------------------------------------------------------------------------------------------------------
 
-def get_airline_code(airline):
-    if airline == "Alaska Airlines": return "AS"
-    if airline == "Allegiant Air": return "G4"
-    if airline == "American Airlines": return "AA"
-    if airline == "Delta Air Lines": return "DL"
-    if airline == "Endeavor Air": return "9E"
-    if airline == "Envoy Air": return "MQ"
-    if airline == "Frontier Airlines": return "F9"
-    if airline == "Hawaiian Airlines": return "HA"
-    if airline == "JetBlue Airways": return "B6"
-    if airline == "PSA Airlines": return "OH"
-    if airline == "Republic Airline": return "YX"
-    if airline == "SkyWest Airlines": return "OO"
-    if airline == "Southwest Airlines": return "WN"
-    if airline == "Spirit Air Lines": return "NK"
-    if airline == "United Air Lines": return "UA"
-    return ""
 
-month = datetime.datetime.strptime(selected_month.strip(), "%B").month if selected_month != "All Months" else ""
-dayofweek = datetime.datetime.strptime(selected_day.strip(), "%A").isoweekday() if selected_day != "All Days" else ""
-origin = selected_origin[:3] if selected_origin != "All Airports" else ""
-dest = selected_destination[:3] if selected_destination != "All Airports" else ""
-reporting_airline = get_airline_code(selected_airline)
-dep_hour =  datetime.datetime.strptime(selected_hour.strip().upper(), "%I:%M %p").hour if selected_hour != "All Hours" else ""
+# -----------------------------------------------------------------------------------------------------------------------------------------
+# DASHBOARD SECTION 2: ON-TIME PERCENTAGE & PREDICTION
+# -----------------------------------------------------------------------------------------------------------------------------------------
 
-st.markdown(f"""
+spacer_left_2, col1_2, spacer_middle_2a, col2_2, spacer_right_2 = st.columns([10, 30, 1, 30, 10], gap="small")
+
+# -- PREDICTION
+
+with col1_2:
+
+    st.markdown(f"""
     <div style="text-align:center;">
         <span style="font-weight:bold; font-size:1.7em;">Prediction</span>
     </div>
     """, unsafe_allow_html=True)
 
-st.markdown(f"""
+    st.markdown(f"""
     <div style="text-align:center;">
         <span style="font-size:1em;">Likelihood of a 30+ minute delay</span>
     </div><br>
     """, unsafe_allow_html=True)
 
-pred_style = f"""
-<div style="
-    background-color: {{color}};
-    border-radius:10px;
-    padding:15px;
-    box-shadow:0 2px 10px rgba(0,0,0,0.1);
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
-    text-align:center;
-    min-height:100px;
-    width:100%;
-    word-wrap:break-word;
-    overflow-wrap:break-word;
-    margin-bottom: 15px;
-">
-    <p style="
-        color: white;
-        font-size:max(0.8vw, 1.4em);
-        font-weight:350;
-        margin:0;
-        line-height:1.5em;
-        text-align:center;
-        word-break:break-word;
-    ">{{pred}}</p>
-</div>
-"""
+    st.markdown(pred_style.format(pred=f"{delay_label}", color=pred_color, box_color=pred_color_box), unsafe_allow_html=True)
 
-input_data = pd.DataFrame({
-        "month": [month],
-        "dayofweek": [dayofweek],
-        "origin": [origin.strip().upper()],
-        "dest": [dest.strip().upper()],
-        "reporting_airline": [reporting_airline.strip().upper()],
-        "dep_hour": [dep_hour]
-    })
+# -- ON-TIME PERCENTAGE
 
-prediction = pipeline.predict(input_data)[0]
-try:
-        pred_prob = pipeline.predict_proba(input_data)[0][1]
-except Exception:
-        pred_prob = None
+with col2_2:
 
-def interpret_probability(prob, thresholds):
-    if prob is None:
-        return "No probability available"
-    sorted_thresholds = sorted(thresholds.items(), key=lambda x: x[1])
-    label = sorted_thresholds[0][0]
-    for name, value in sorted_thresholds:
-        if prob >= value:
-            label = name
-    return label
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-weight:bold; font-size:1.7em;">On-Time Percentage</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-fields = [month, dayofweek, origin, dest, reporting_airline, dep_hour]
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-size:1em;">Flights that landed within 15 minutes of scheduled arrival</span>
+    </div><br>
+    """, unsafe_allow_html=True)
 
-if any(x is not None and x != "" for x in fields):
-    delay_label = interpret_probability(pred_prob, thresholds)
-else: 
-    delay_label = "Select at least one filter to view delay prediction"
+    st.markdown(otp_style.format(percent=f"{on_time_percent_otp}", color=colors_otp[0], box_color=box_colors_otp), unsafe_allow_html=True)
 
-if delay_label == "Delay Very Unlikely":
-    pred_color = my_green
-elif delay_label == "Delay Unlikely":
-    pred_color = my_lime
-elif delay_label == "Delay Somewhat Likely":
-    pred_color = my_yellow
-elif delay_label == "Delay Likely":
-    pred_color = my_orange
-elif delay_label == "Delay Very Likely":
-    pred_color = my_red
-else:
-    pred_color = my_grey
 
-spacer_left, col1, spacer_right = st.columns([2, 21, 2], gap="small")
+st.markdown("<br><br>", unsafe_allow_html=True)
 
-with col1: st.markdown(pred_style.format(pred=f"{delay_label}", color=pred_color), unsafe_allow_html=True)
+
+# -----------------------------------------------------------------------------------------------------------------------------------------
+# DASHBOARD SECTION 3: ARRIVAL TIME PERCENTILES
+# -----------------------------------------------------------------------------------------------------------------------------------------
+
+# -- ARRIVAL TIME PERCENTILES
+
+st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-weight:bold; font-size:1.7em;">Arrival Time Percentiles</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-size:1em;">Time it takes for a majority of flights to arrive</span>
+    </div><br>
+    """, unsafe_allow_html=True)
+
+spacer_left, col1, col2, col3, spacer_right = st.columns([7, 20, 20, 20, 7], gap="medium")
+
+with col1: 
+
+    st.markdown(perc_card_style.format(title=f"{quant_90}", metric="90%", color=quant_90_color, box_color=quant_90_box), unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-size:1em;">National 90th Percentile: {quant_90_all} min</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2: 
+
+    st.markdown(perc_card_style.format(title=f"{quant_95}", metric="95%", color=quant_95_color, box_color=quant_95_box), unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-size:1em;">National 95th Percentile: {quant_95_all} min</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:     
+
+    st.markdown(perc_card_style.format(title=f"{quant_99}", metric="99%", color=quant_99_color, box_color=quant_99_box), unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-size:1em;">National 99th Percentile: {quant_99_all} min</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+
