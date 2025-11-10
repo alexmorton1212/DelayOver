@@ -387,6 +387,15 @@ otp_style = f"""
 """
 
 perc_card_style = f"""
+    <p style="
+        color: white;
+        font-size:max(0.8vw, 1em);
+        margin:0;
+        line-height:1.2em;
+        text-align:center;
+        word-break:break-word;
+        margin-bottom: 10px;
+    ">{{metric}} of flights land within</p>
 <div style="
     background-color: {{color}};
     border-radius:100px;
@@ -405,14 +414,6 @@ perc_card_style = f"""
 ">
     <p style="
         color: white;
-        font-size:max(0.8vw, 1em);
-        margin:0;
-        line-height:1.2em;
-        text-align:center;
-        word-break:break-word;
-    ">{{metric}} of flights land within</p>
-    <p style="
-        color: white;
         font-size:max(1.4vw, 1.8em);
         font-weight:bold;
         margin:0;
@@ -420,6 +421,7 @@ perc_card_style = f"""
         text-align:center;
         word-break:break-word;
     ">{{title}}</p>
+</div>
     <p style="
         color: white;
         font-size:max(0.8vw, 1em);
@@ -428,7 +430,6 @@ perc_card_style = f"""
         text-align:center;
         word-break:break-word;
     ">of scheduled arrival time</p>
-</div>
 """
 
 # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -523,11 +524,13 @@ st.markdown(f"""
     </div>
     """, unsafe_allow_html=True)
 
-st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-size:1em;">Time it takes for a majority of flights to arrive</span>
-    </div><br>
-    """, unsafe_allow_html=True)
+# st.markdown(f"""
+#     <div style="text-align:center;">
+#         <span style="font-size:1em;">Time it takes for flights to land within their scheduled arrival time</span>
+#     </div><br>
+#     """, unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 spacer_left, col1, col2, col3, spacer_right = st.columns([7, 20, 20, 20, 7], gap="medium")
 
@@ -535,30 +538,30 @@ with col1:
 
     st.markdown(perc_card_style.format(title=f"{quant_90}", metric="90%", color=quant_90_color, box_color=quant_90_box), unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-size:1em;">National 90th Percentile: {quant_90_all} min</span>
-    </div>
-    """, unsafe_allow_html=True)
+    # st.markdown(f"""
+    # <div style="text-align:center;">
+    #     <span style="font-size:1em;">National 90th Percentile: {quant_90_all} min</span>
+    # </div>
+    # """, unsafe_allow_html=True)
 
 with col2: 
 
     st.markdown(perc_card_style.format(title=f"{quant_95}", metric="95%", color=quant_95_color, box_color=quant_95_box), unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-size:1em;">National 95th Percentile: {quant_95_all} min</span>
-    </div>
-    """, unsafe_allow_html=True)
+    # st.markdown(f"""
+    # <div style="text-align:center;">
+    #     <span style="font-size:1em;">National 95th Percentile: {quant_95_all} min</span>
+    # </div>
+    # """, unsafe_allow_html=True)
 
 with col3:     
 
     st.markdown(perc_card_style.format(title=f"{quant_99}", metric="99%", color=quant_99_color, box_color=quant_99_box), unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-size:1em;">National 99th Percentile: {quant_99_all} min</span>
-    </div>
-    """, unsafe_allow_html=True)
+    # st.markdown(f"""
+    # <div style="text-align:center;">
+    #     <span style="font-size:1em;">National 99th Percentile: {quant_99_all} min</span>
+    # </div>
+    # """, unsafe_allow_html=True)
 
 
