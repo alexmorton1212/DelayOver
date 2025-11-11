@@ -13,8 +13,8 @@ thresholds = {
     "Delay Very Unlikely": 0.25,
     "Delay Unlikely": 0.35,
     "Delay Somewhat Likely": 0.45,
-    "Delay Likely": 0.6,
-    "Delay Very Likely": 0.75
+    "Delay Likely": 0.7,
+    "Delay Very Likely": 1.0
 }
 
 with open(metadata_path, 'r') as f:

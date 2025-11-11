@@ -125,11 +125,10 @@ def get_prob_label(prob, thresholds):
     if prob is None:
         return "No probability available"
     sorted_thresholds = sorted(thresholds.items(), key=lambda x: x[1])
-    label = sorted_thresholds[0][0]
-    for name, value in sorted_thresholds:
-        if prob >= value:
-            label = name
-    return label
+    for i, (name, value) in enumerate(sorted_thresholds):
+        if prob < value:
+            return name
+    return sorted_thresholds[-1][0]
 
 def safe_quantile(series, q):
     val = series.quantile(q)
@@ -278,6 +277,8 @@ data_pred = pd.DataFrame({"month": [month_pred], "dayofweek": [dayofweek_pred], 
 prediction = pipeline.predict(data_pred)[0]
 try: pred_prob = pipeline.predict_proba(data_pred)[0][1]
 except Exception: pred_prob = None
+
+pred_prob = 0.69
 
 delay_label = get_prob_label(pred_prob, thresholds) if any(x is not None and x != "" for x in fields_pred) else "Select filters to view"
 if delay_label == "Delay Very Unlikely": pred_color, pred_color_box = my_green, my_green_box

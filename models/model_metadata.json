@@ -12,8 +12,8 @@
         "Delay Very Unlikely": 0.25,
         "Delay Unlikely": 0.35,
         "Delay Somewhat Likely": 0.45,
-        "Delay Likely": 0.6,
-        "Delay Very Likely": 0.75
+        "Delay Likely": 0.7,
+        "Delay Very Likely": 1.0
     },
     "generated_at": "2025-11-09T23:59:22.850213+00:00"
 }
