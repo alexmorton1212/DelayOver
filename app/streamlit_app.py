@@ -524,7 +524,7 @@ st.markdown(f"""
 
 st.markdown(f"""
     <div style="text-align:center;">
-        <span style="font-size:1em;">When flights land relative to their scheduled arrival times</span>
+        <span style="font-size:1em;">When flights land relative to scheduled arrival times</span>
     </div>
     """, unsafe_allow_html=True)
 
