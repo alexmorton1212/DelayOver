@@ -97,6 +97,8 @@ my_orange_box = "#703D16"
 my_red_box = "#662A2A"
 my_grey_box = "#616161"
 
+my_lightblue = "#5D8199"
+
 
 # -----------------------------------------------------------------------------------------------------------------------------------------
 # FUNCTIONS
@@ -277,7 +279,7 @@ prediction = pipeline.predict(data_pred)[0]
 try: pred_prob = pipeline.predict_proba(data_pred)[0][1]
 except Exception: pred_prob = None
 
-delay_label = get_prob_label(pred_prob, thresholds) if any(x is not None and x != "" for x in fields_pred) else "Select a filter to view delay prediction"
+delay_label = get_prob_label(pred_prob, thresholds) if any(x is not None and x != "" for x in fields_pred) else "Select filters to view"
 if delay_label == "Delay Very Unlikely": pred_color, pred_color_box = my_green, my_green_box
 elif delay_label == "Delay Unlikely": pred_color, pred_color_box = my_lime, my_lime_box
 elif delay_label == "Delay Somewhat Likely": pred_color, pred_color_box = my_yellow, my_yellow_box
@@ -293,35 +295,35 @@ else: pred_color, pred_color_box = my_grey, my_grey_box
 nf_card_style = f"""
 <div style="
     background-color: {{color}};
-    border-radius:40px;
-    padding:15px;
-    box-shadow:0 10px 0 0 #303d52;
+    border-radius:50px;
+    padding:10px;
+    box-shadow:0 10px 0 0 #3E5566;
     display:flex;
     flex-direction:column;
     justify-content:center;
     align-items:center;
     text-align:center;
-    min-height:60px;
     width:100%;
     word-wrap:break-word;
     overflow-wrap:break-word;
-    margin-bottom: 40px;
+    margin-bottom: 50px;
 ">
     <p style="
         color: white;
-        font-size:max(1vw, 1.2em);
+        font-size:max(0.8vw, 1.2em);
         font-weight:350;
         margin:0;
-        line-height:1.5em;
+        line-height:1.3em;
         text-align:center;
+        margin-bottom: 3px;
         word-break:break-word;
     ">{{title}}</p>
     <p style="
         color: white;
-        font-size:max(1.2vw, 1.5em);
+        font-size:max(1vw, 1.4em);
         font-weight:bold;
         margin:0;
-        line-height:1.5em;
+        line-height:1.3em;
         text-align:center;
         word-break:break-word;
     ">{{metric}}</p>
@@ -332,7 +334,7 @@ pred_style = f"""
 <div style="
     background-color: {{color}};
     border-radius:50px;
-    padding:15px;
+    padding:10px;
     box-shadow:0 10px 0 0 {{box_color}};
     display:flex;
     flex-direction:column;
@@ -343,11 +345,11 @@ pred_style = f"""
     width:100%;
     word-wrap:break-word;
     overflow-wrap:break-word;
-    margin-bottom: 15px;
+    margin-bottom: 50px;
 ">
     <p style="
         color: white;
-        font-size:max(1vw, 1.6em);
+        font-size:max(1vw, 1.4em);
         font-weight:500;
         margin:0;
         line-height:1.5em;
@@ -361,7 +363,7 @@ otp_style = f"""
 <div style="
     background-color: {{color}};
     border-radius:50px;
-    padding:15px;
+    padding:10px;
     box-shadow:0 10px 0 0 {{box_color}};
     display:flex;
     flex-direction:column;
@@ -372,11 +374,11 @@ otp_style = f"""
     width:100%;
     word-wrap:break-word;
     overflow-wrap:break-word;
-    margin-bottom: 15px;
+    margin-bottom: 50px;
 ">
     <p style="
         color: white;
-        font-size:max(1vw, 1.6em);
+        font-size:max(1vw, 1.4em);
         font-weight:500;
         margin:0;
         line-height:1.5em;
@@ -394,83 +396,53 @@ perc_card_style = f"""
         line-height:1.2em;
         text-align:center;
         word-break:break-word;
+        margin-top: 30px;
         margin-bottom: 10px;
     ">{{metric}} of flights land within</p>
 <div style="
     background-color: {{color}};
     border-radius:100px;
-    padding:15px;
+    padding:10px;
     box-shadow:0 10px 0 0 {{box_color}};
     display:flex;
     flex-direction:column;
     justify-content:center;
     align-items:center;
     text-align:center;
-    min-height:80px;
     width:100%;
     word-wrap:break-word;
     overflow-wrap:break-word;
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 ">
     <p style="
         color: white;
-        font-size:max(1.4vw, 1.8em);
-        font-weight:bold;
+        font-size:max(1vw, 1.4em);
+        font-weight:500;
         margin:0;
         line-height:1.5em;
         text-align:center;
         word-break:break-word;
     ">{{title}}</p>
 </div>
+    <!--
     <p style="
         color: white;
         font-size:max(0.8vw, 1em);
         margin:0;
         line-height:1.2em;
         text-align:center;
+        margin-bottom: 30px;
         word-break:break-word;
     ">of scheduled arrival time</p>
+    -->
 """
 
-# -----------------------------------------------------------------------------------------------------------------------------------------
-# DASHBOARD SECTION 1: NUMBER OF FLIGHTS
-# -----------------------------------------------------------------------------------------------------------------------------------------
-
-spacer_left_1, col1_1, spacer_right_1 = st.columns([2, 20, 2], gap="small")
-
-# -- NUMBER OF FLIGHTS
-
-with col1_1:
-
-    st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-weight:bold; font-size:1.7em;">Number of Flights</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown(f"""
-    <div style="text-align:center;">
-        <span style="font-size:1em;">Flights that land 15+ minutes after scheduled arrival are considered delayed</span>
-    </div><br>
-    """, unsafe_allow_html=True)
-
-    subcol1_1, subcol2_1, subcol3_1, subcol4_1 = st.columns([1, 1, 1, 1], gap="medium")
-
-    with subcol1_1: st.markdown(nf_card_style.format(title="Total", metric=f"{total_nf:,}", color="#5D8199"), unsafe_allow_html=True)
-    with subcol2_1: st.markdown(nf_card_style.format(title="Delayed", metric=f"{delayed_nf:,}", color="#5D8199"), unsafe_allow_html=True)
-    with subcol3_1: st.markdown(nf_card_style.format(title="Cancelled", metric=f"{cancelled_nf:,}", color="#5D8199"), unsafe_allow_html=True)
-    with subcol4_1: st.markdown(nf_card_style.format(title="Diverted", metric=f"{diverted_nf:,}", color="#5D8199"), unsafe_allow_html=True)
-
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-
 
 # -----------------------------------------------------------------------------------------------------------------------------------------
-# DASHBOARD SECTION 2: ON-TIME PERCENTAGE & PREDICTION
+# DASHBOARD SECTION 1: ON-TIME PERCENTAGE & PREDICTION
 # -----------------------------------------------------------------------------------------------------------------------------------------
 
-spacer_left_2, col1_2, spacer_middle_2a, col2_2, spacer_right_2 = st.columns([10, 30, 1, 30, 10], gap="small")
+spacer_left_2, col1_2, spacer_middle_2a, col2_2, spacer_right_2 = st.columns([10, 35, 1, 35, 10], gap="small")
 
 # -- PREDICTION
 
@@ -496,7 +468,7 @@ with col2_2:
 
     st.markdown(f"""
     <div style="text-align:center;">
-        <span style="font-weight:bold; font-size:1.7em;">On-Time Percentage</span>
+        <span style="font-weight:bold; font-size:1.7em;">On-Time %</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -509,7 +481,33 @@ with col2_2:
     st.markdown(otp_style.format(percent=f"{on_time_percent_otp}", color=colors_otp[0], box_color=box_colors_otp), unsafe_allow_html=True)
 
 
-st.markdown("<br><br>", unsafe_allow_html=True)
+# -----------------------------------------------------------------------------------------------------------------------------------------
+# DASHBOARD SECTION 2: NUMBER OF FLIGHTS
+# -----------------------------------------------------------------------------------------------------------------------------------------
+
+spacer_left_1, col1_1, spacer_right_1 = st.columns([1, 20, 1], gap="small")
+
+# -- NUMBER OF FLIGHTS
+
+with col1_1:
+
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-weight:bold; font-size:1.7em;">Number of Flights</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-size:1em;">Flights that land 15+ minutes after scheduled arrival are considered delayed</span>
+    </div><br>
+    """, unsafe_allow_html=True)
+
+    subcol1_1, subcol2_1, subcol3_1 = st.columns([1, 1, 1], gap="medium")
+
+    with subcol1_1: st.markdown(nf_card_style.format(title="Total", metric=f"{total_nf:,}", color="#5D8199"), unsafe_allow_html=True)
+    with subcol2_1: st.markdown(nf_card_style.format(title="Delayed", metric=f"{delayed_nf:,}", color="#5D8199"), unsafe_allow_html=True)
+    with subcol3_1: st.markdown(nf_card_style.format(title="Cancelled", metric=f"{cancelled_nf:,}", color="#5D8199"), unsafe_allow_html=True)
 
 
 # -----------------------------------------------------------------------------------------------------------------------------------------
@@ -524,44 +522,14 @@ st.markdown(f"""
     </div>
     """, unsafe_allow_html=True)
 
-# st.markdown(f"""
-#     <div style="text-align:center;">
-#         <span style="font-size:1em;">Time it takes for flights to land within their scheduled arrival time</span>
-#     </div><br>
-#     """, unsafe_allow_html=True)
+st.markdown(f"""
+    <div style="text-align:center;">
+        <span style="font-size:1em;">Time it takes flights to land within their scheduled arrival time</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
+spacer_left, col1, col2, col3, spacer_right = st.columns([1, 6, 6, 6, 1], gap="medium")
 
-spacer_left, col1, col2, col3, spacer_right = st.columns([7, 20, 20, 20, 7], gap="medium")
-
-with col1: 
-
-    st.markdown(perc_card_style.format(title=f"{quant_90}", metric="90%", color=quant_90_color, box_color=quant_90_box), unsafe_allow_html=True)
-
-    # st.markdown(f"""
-    # <div style="text-align:center;">
-    #     <span style="font-size:1em;">National 90th Percentile: {quant_90_all} min</span>
-    # </div>
-    # """, unsafe_allow_html=True)
-
-with col2: 
-
-    st.markdown(perc_card_style.format(title=f"{quant_95}", metric="95%", color=quant_95_color, box_color=quant_95_box), unsafe_allow_html=True)
-
-    # st.markdown(f"""
-    # <div style="text-align:center;">
-    #     <span style="font-size:1em;">National 95th Percentile: {quant_95_all} min</span>
-    # </div>
-    # """, unsafe_allow_html=True)
-
-with col3:     
-
-    st.markdown(perc_card_style.format(title=f"{quant_99}", metric="99%", color=quant_99_color, box_color=quant_99_box), unsafe_allow_html=True)
-
-    # st.markdown(f"""
-    # <div style="text-align:center;">
-    #     <span style="font-size:1em;">National 99th Percentile: {quant_99_all} min</span>
-    # </div>
-    # """, unsafe_allow_html=True)
-
-
+with col1: st.markdown(perc_card_style.format(title=f"{quant_90}", metric="90%", color=quant_90_color, box_color=quant_90_box), unsafe_allow_html=True)
+with col2: st.markdown(perc_card_style.format(title=f"{quant_95}", metric="95%", color=quant_95_color, box_color=quant_95_box), unsafe_allow_html=True)
+with col3: st.markdown(perc_card_style.format(title=f"{quant_99}", metric="99%", color=quant_99_color, box_color=quant_99_box), unsafe_allow_html=True)
