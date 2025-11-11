@@ -456,7 +456,7 @@ with col1_2:
 
     st.markdown(f"""
     <div style="text-align:center;">
-        <span style="font-size:1em;">Likelihood of a 30+ minute delay</span>
+        <span style="font-size:1em;">Likelihood of a 30+ min delay</span>
     </div><br>
     """, unsafe_allow_html=True)
 
@@ -499,7 +499,7 @@ with col1_1:
 
     st.markdown(f"""
     <div style="text-align:center;">
-        <span style="font-size:1em;">Flights that land 15+ minutes after scheduled arrival are considered delayed</span>
+        <span style="font-size:1em;">Flights that land 15+ min late are considered delayed</span>
     </div><br>
     """, unsafe_allow_html=True)
 
@@ -524,7 +524,7 @@ st.markdown(f"""
 
 st.markdown(f"""
     <div style="text-align:center;">
-        <span style="font-size:1em;">Time it takes flights to land within their scheduled arrival time</span>
+        <span style="font-size:1em;">When flights land relative to their scheduled arrival times</span>
     </div>
     """, unsafe_allow_html=True)
 
