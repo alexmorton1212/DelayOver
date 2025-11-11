@@ -396,7 +396,7 @@ perc_card_style = f"""
         line-height:1.2em;
         text-align:center;
         word-break:break-word;
-        margin-top: 30px;
+        margin-top: max(1.6vw, 1em);
         margin-bottom: 10px;
     ">{{metric}} of flights land within</p>
 <div style="
