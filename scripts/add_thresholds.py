@@ -11,8 +11,8 @@ metadata_path = os.path.join(MODELS_DIR, 'model_metadata.json')
 
 thresholds = {
     "Delay Very Unlikely": 0.25,
-    "Delay Unlikely": 0.35,
-    "Delay Somewhat Likely": 0.45,
+    "Delay Unlikely": 0.4,
+    "Delay Somewhat Likely": 0.5,
     "Delay Likely": 0.7,
     "Delay Very Likely": 1.0
 }

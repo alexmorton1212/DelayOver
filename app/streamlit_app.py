@@ -278,8 +278,6 @@ prediction = pipeline.predict(data_pred)[0]
 try: pred_prob = pipeline.predict_proba(data_pred)[0][1]
 except Exception: pred_prob = None
 
-pred_prob = 0.69
-
 delay_label = get_prob_label(pred_prob, thresholds) if any(x is not None and x != "" for x in fields_pred) else "Select filters to view"
 if delay_label == "Delay Very Unlikely": pred_color, pred_color_box = my_green, my_green_box
 elif delay_label == "Delay Unlikely": pred_color, pred_color_box = my_lime, my_lime_box
